@@ -1,6 +1,7 @@
 use crate::model::{player::Player, card::Card};
 
 #[derive(Clone)]
+#[derive(Debug)]
 #[derive(serde::Serialize)]
 #[derive(serde::Deserialize)]
 pub struct Round {

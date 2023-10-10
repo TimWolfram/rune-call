@@ -1,8 +1,8 @@
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct Player {
-    pub player_id: usize,
+    pub id: usize,
     pub name: String,
 }
 

@@ -4,8 +4,7 @@ use crate::model::{player::Player, rune::Rune, round::Round, card::Card, room::R
 use rocket::{ response::{Responder, Response}, serde::json, Request, http::ContentType};
 use serde::{Serialize, Deserialize};
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct Game{
     pub id: usize,

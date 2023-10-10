@@ -1,7 +1,7 @@
 use crate::model::{player::Player, game::Game};
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Room {
     pub id: usize,
     pub name: String,
@@ -11,7 +11,7 @@ pub struct Room {
     pub played_games: Vec<Game>,
 }
 
-impl Room {
+impl Room {    
     pub fn create(id: usize, host_player: &Player, room_name: &str, room_pwd: &str) -> Room {
         Room {
             id: id,
