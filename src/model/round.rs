@@ -1,21 +1,14 @@
-use crate::model::{player::Player, card::Card};
+use crate::model::{card::Card, player::Player};
 
-#[derive(Clone)]
-#[derive(Debug)]
-#[derive(serde::Serialize)]
-#[derive(serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Round {
-    pub players: Vec<(Player, Option<Card>)>,
+    pub played_cards: Vec<(Player, Card)>,
 }
 
 impl Round {
-    pub fn new(players: Vec<Player>) -> Round {
-        let mut players_with_cards:Vec<(Player, Option<Card>)> = Vec::new();
-        for player in players {
-            players_with_cards.push((player, None));
-        }
+    pub fn new() -> Round {
         Round {
-            players: players_with_cards,
+            played_cards: Vec::new(),
         }
     }
 }

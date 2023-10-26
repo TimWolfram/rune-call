@@ -1,24 +1,30 @@
-use crate::model::{player::Player, game::Game};
-use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+
+use crate::model::player::Player;
+use serde::{Deserialize, Serialize};
+
+pub use super::{game::PlayerTeams, CreateRoomForm, Rune};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Room {
-    pub id: usize,
     pub name: String,
     pub password: String,
-      
-    pub current_players: Vec<Player>,
-    pub played_games: Vec<Game>,
+    pub player_teams: PlayerTeams,
+    pub players: Vec<Player>,
+    pub host_player_id: usize,
 }
 
-impl Room {    
-    pub fn create(id: usize, host_player: &Player, room_name: &str, room_pwd: &str) -> Room {
+impl Room {
+    pub fn from_form(form: CreateRoomForm, host_player: &Player) -> Room {
+        let host_player = host_player;
+        let room_name: &str = &form.name;
+        let room_pwd: &str = &form.password;
         Room {
-            id: id,
             name: room_name.to_string(),
-            current_players: vec![host_player.clone()],
-            played_games: Vec::new(),
             password: room_pwd.to_string(),
+            player_teams: HashMap::from([(0, vec![host_player.id])]),
+            players: vec![host_player.clone()],
+            host_player_id: host_player.id,
         }
     }
 }
