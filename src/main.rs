@@ -1,13 +1,9 @@
+mod model;
 mod repository;
 use repository::*;
 
-mod model;
-
 mod controller;
 use controller::*;
-
-mod password;
-mod test;
 
 use rocket::response::Redirect;
 
@@ -22,6 +18,10 @@ fn rocket() -> _ {
         .mount(
             "/",
             routes![
+                login::login,
+                login::logout,
+                login::register,
+                
                 rooms::get_rooms,
                 rooms::get_room,
                 rooms::create_room,
@@ -33,9 +33,8 @@ fn rocket() -> _ {
                 secret,
             ],
         )
-        .mount("/test/", routes![test::id])
-        //add state
-        .manage(PlayerRepository::default())
+        //add state: using in-memory repositories instead of databases
+        .manage(UserRepository::default())
         .manage(RoomRepository::default())
 }
 

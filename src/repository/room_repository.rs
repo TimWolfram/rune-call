@@ -1,72 +1,79 @@
-use crate::model::{CreateRoomForm, Game, Room, Player};
+
 use rocket::{tokio::sync::Mutex, State};
+
 use std::collections::HashMap;
 use std::sync::atomic::AtomicUsize;
 
-pub type HostPlayerId = usize;
+type RoomId = usize;
+type Map<K, V> = Mutex<HashMap<K, V>>;
 
-#[rocket::async_trait]
-pub trait RoomApi
-where
-    Self: Sized + Sync + Send + 'static,
-{
-    async fn get_rooms<T>(state: &State<Self>) -> Vec<Room>;
-
-    async fn get_room(&self, host_player_id: HostPlayerId) -> Option<Room>;
-    async fn create_room(
-        &self,
-        host_player: Player,
-        room_form: CreateRoomForm,
-    ) -> Result<Room, &str>;
-    async fn delete_room(&self, host_player_id: HostPlayerId) -> Option<Room>;
-}
-
+use crate::model::game::Room;
 pub struct RoomRepository {
-    pub rooms: Mutex<HashMap<HostPlayerId, Room>>, //stores rooms by host player id
-    pub games: Mutex<HashMap<usize, Game>>,        //stores games by room id
-    pub room_count: AtomicUsize,                   //stores number of rooms
+    rooms: Map<RoomId, Room>, //stores rooms by room id
+    hosts: Map<UserId, RoomId>, //stores room ids by host user id
+    room_count: AtomicUsize, //generates new ids for rooms
 }
 
 impl Default for RoomRepository {
     fn default() -> Self {
         RoomRepository {
             rooms: Mutex::new(HashMap::new()),
-            room_count: AtomicUsize::new(0),
-            games: Mutex::new(HashMap::new()),
+            room_count: AtomicUsize::new(1),
+            hosts: Mutex::new(HashMap::new()),
         }
     }
 }
 
-#[rocket::async_trait]
-impl RoomApi for RoomRepository {
-    async fn get_rooms<T>(state: &State<Self>) -> Vec<Room> {
+use crate::model::login::{UserId, User};
+use crate::model::game::CreateRoomForm;
+impl RoomRepository {
+    pub async fn get_rooms(state: &State<Self>) -> Vec<Room> {
         state.rooms.lock().await.values().cloned().collect()
     }
-    async fn get_room(&self, host_player_id: HostPlayerId) -> Option<Room> {
-        self.rooms.lock().await.get(&host_player_id).cloned()
+    
+    pub async fn get_rooms_paged(state: &State<Self>, start: usize, count: usize) -> Vec<Room> {
+        let rooms = state.rooms.lock().await;
+        rooms.values()
+            .skip(start)
+            .take(count)
+            .cloned()
+            .collect()
     }
-    async fn delete_room(&self, host_player_id: HostPlayerId) -> Option<Room> {
-        self.rooms.lock().await.remove(&host_player_id)
+
+    pub async fn get_room_by_host(&self, host_user_id: &UserId) -> Result<Room, &str> {
+        let hosts = &self.hosts.lock().await;
+        let room_id = hosts.get(host_user_id).cloned()
+            .ok_or("User is not hosting a room!")?;
+        let rooms = &self.rooms.lock().await;
+        rooms.get(&room_id).cloned()
+            .ok_or("Room no longer exists!")
     }
-    async fn create_room(
-        &self,
-        host_player: Player,
-        room_form: CreateRoomForm,
-    ) -> Result<Room, &str> {
+    pub async fn get_room_by_id(&self, room_id: &RoomId) -> Option<Room> {
+        self.rooms.lock().await.get(room_id).cloned()
+    }
+    pub async fn delete_room(&self, room_id: &RoomId) -> Result<Room, &str> {
+        let room = self.rooms.lock().await.remove(room_id).ok_or("Room does not exist!")?;
+        let host_id = room.host_user_id;
+        self.hosts.lock().await.remove(&host_id);
+        Ok(room)
+    }
+    pub async fn create_room(&self, host_user: &User, room_form: CreateRoomForm) -> Result<Room, &str> {
+        // check if name is valid
         if room_form.name.len() < 3 {
             return Err("Room name must be at least 3 characters long!");
         }
-
+        let mut hosts = self.hosts.lock().await;
+        // check if user is already hosting a room
+        if hosts.contains_key(host_id) {
+            return Err("User is already hosting a room!");
+        }
+        let room_id = self.room_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let name = room_form.name;
+        let password = room_form.password;
+        let new_room = Room::new(room_id, name, password, host_user);
         let mut rooms = self.rooms.lock().await;
-        if rooms.contains_key(&host_player.id) {
-            return Err("Player is already hosting a room!");
-        }
-
-        let x = rooms.insert(host_player.id, Room::from_form(room_form, &host_player));
-        if x.is_none() {
-            //should not be happening since we checked if the player is already hosting a room; just in case
-            return Err("Room could not be created! (unknown error)");
-        }
-        Ok(x.unwrap())
+        hosts.insert(host_id, room_id);
+        rooms.insert(room_id, new_room.clone());
+        Ok(new_room)
     }
 }

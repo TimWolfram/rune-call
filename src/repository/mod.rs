@@ -1,5 +1,8 @@
-mod player_repository;
-mod room_repository;
+mod user_repository;
+pub use user_repository::UserRepository;
 
-pub use player_repository::PlayerRepository as PlayerRepository;
-pub use room_repository::RoomRepository as RoomRepository;
+mod room_repository;
+pub use room_repository::RoomRepository;
+
+mod game_repository;
+pub use game_repository::GameRepository;

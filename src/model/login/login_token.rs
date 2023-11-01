@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-
 #[derive(Serialize, Deserialize)]
-pub struct PlayerToken {
-    pub player_id: usize,
-    pub exp: usize,
+pub struct LoginToken {
+    pub user_id: usize,
+    pub exp: u64,
 }

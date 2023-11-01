@@ -1,129 +1,143 @@
-use std::collections::HashMap;
+use core::panic;
 
-use crate::model::{Game, Player, Room, PlayerTeams, Round, PlayerToken};
-use crate::repository::{PlayerRepository, RoomRepository};
+use crate::model::game::{Room, Game, Card, Player, GameState};
+use crate::model::login::{UserId, LoginToken};
+use crate::repository::{RoomRepository, UserRepository, GameRepository};
 
 use rocket::http::CookieJar;
 use rocket::State;
 use rocket::serde::json::Json;
 
-
 impl Game{
-    pub fn create(room: &Room) -> Game {
-        let mut teams:PlayerTeams = HashMap::new();
-        for (team_id, team) in room.player_teams.iter() {
-            let mut player_ids:Vec<usize> = Vec::new();
-            for player_id in team {
-                player_ids.push(player_id.clone());
+    fn start(room: &mut Room) -> Result<Game, &'static str> {
+        // check if current game is finished
+        if let Some(game) = &room.game {
+            match &game.game_state {
+                GameState::Finished{..} => {
+                    // if game is finished, add it to game history
+                    room.game_history.push(game.clone());
+                }
+                _ => return Err("Current game is not finished!"),
             }
-            teams.insert(team_id.clone(), player_ids);
         }
-        Game {
-            current_round: Round::new(),
-            player_order: room.players.clone(),
-            teams: teams,
+
+        // check if room has enough players
+        for player in &room.players {
+            assert!(player.is_some(), "Room should have 4 players!");
+        }
+
+        // find starting player
+        let starting_player = match room.game_history.last(){
+            Some(game) => {
+                //get last game's starting player
+                let last_starting = game.players[0].clone();
+                // if starting player won, they start again
+                if let GameState::Finished{winners} = game.game_state.clone()     {
+                    if winners.contains(&last_starting) { 
+                        last_starting
+                    } else {
+                        // if starting player lost, next player starts
+                        let mut next_player_index = 0;
+                        for (i, player) in game.players.iter().enumerate() {
+                            if player.user_id == last_starting.user_id {
+                                next_player_index = i + 1;
+                            }
+                        }
+                        game.players[next_player_index].clone()
+                    }
+                } else {
+                    panic!("Last game should be finished!");
+                }
+            },
+            None => {
+                //no game history: random starting player
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                let random_index = rng.gen_range(0..room.players.len());
+                room.players[random_index].clone().unwrap()
+            }
+        };
+        let mut start_player_index = 0;
+        
+        let mut players: Vec<Player> = room
+            .players
+            .iter().enumerate()
+            .map(|(i, player)|
+        {
+            match player{
+                Some(player) => {
+                    let player = player.clone();
+                    if player == starting_player {
+                        start_player_index = i;
+                    }
+                    player
+                }
+                None => panic!("Room does not have enough players!"),
+            }
+        })
+        .collect();
+
+        // rotate players so that starting player is first
+        players.rotate_left(start_player_index);
+
+        //draw 5 cards for each player
+        let mut deck: Vec<Card> = Card::generate_deck();
+        for player in &mut players {
+            player.current_cards = deck.drain(0..5).collect();
+        }
+        let players: [Player; 4] = players.try_into().unwrap();
+        let game = Game {
+            players,
             played_rounds: Vec::new(),
-            player_cards: HashMap::new(),
-            blessed_rune: None,
-        }
-    }
-    pub fn new(players: Vec<Player>, player_teams: PlayerTeams) -> Game {
-        let mut teams = player_teams.clone();
-        Game {
-            current_round: Round::new(),
-            player_order: players,
-            teams: teams,
-            played_rounds: Vec::new(),
-            player_cards: HashMap::new(),
-            blessed_rune: None,
-        }
+            game_state: GameState::Starting{remaining_deck: deck},
+        };
+        room.game = Some(game.clone());
+        Ok(game)
     }
 }
+
 //get game by id (join game -- requires room code)
 #[get("/rooms/<room_id>/game")]
-pub async fn get_game(room_id: usize, room_repo: &State<RoomRepository>) -> Result<Json<Game>, &str> {
-    let games = room_repo.games.lock().await;
-    match games.get(&room_id) {
+pub async fn get_game( room_id: usize, 
+    room_repo: &'_ State<RoomRepository>, 
+    game_repo: &'_ State<GameRepository> )
+-> Result<Json<Game>, &'static str> {
+    let room = room_repo.get_room_by_id(&room_id).await;
+    match room {
         None => {
-            //check if room exists
-            let rooms = &room_repo.rooms.lock().await;
-            if !rooms.contains_key(&room_id) {
-                return Err("Room does not exist!");
-            }
-            Err("Game not found!")
+            return Err("Room does not exist!");
         }
-        Some(game) => Ok(Json(game.clone())),
+        Some(room) => {
+            if room.game.is_none() {
+                return Err("Game not found!");
+            }
+            Ok(Json(room.game.clone().unwrap()))
+        }
     }
 }
 
 // create(start) game
 #[post("/rooms/<id>/game", format = "json")]
-pub async fn create_game<'a>(
-    id: usize,
-    room_repo: &State<RoomRepository>,
-    player_repo: &State<PlayerRepository>,
-    cookies: &CookieJar<'_>,
-) -> Result<Json<Game>, String> { //has to return String instead of &str because for some reason you cannot format a &str
+pub async fn create_game<'a>(id: UserId, room_repo: &State<RoomRepository>, user_repo: &State<UserRepository>, cookies: &CookieJar<'_>,) 
+-> Result<Json<Game>, &'a str> {
+    // first check if player is logged in before trying to create game; if not, no need to lock mutex
+    let player_token = LoginToken::from_cookies(cookies)?;
+    if user_repo.get(player_token.user_id).await.is_none() {
+        return Err("User does not exist!");
+    }
     // get room
     let rooms = &room_repo.rooms.lock().await;
-    let room = rooms.get(&id);
-    if room.is_none() {
-        return Err("Room not found!".to_string());
+    let room = rooms.get(&id).ok_or_else(|| "Room not found!")?; 
+    if room.players.len() < 3 {
+        return Err("Not enough players in room to start game! You need at least 3 players.");
     }
-
-    // room exists
-    let room = room.unwrap();
-    if room.player_teams.len() < 3 {
-        return Err("Not enough players in room!".to_string());
+    if room.game.is_some() {
+        return Err("Game already started!");
     }
-
-    let games = &room_repo.games.lock().await;
-    // create game
-    if games.contains_key(&id) {
-        return Err("Game already started!".to_string());
+    if player_token.user_id != room.host_user_id {
+        return Err("Only the host can start the game!")
     }
     
-    let player_token = PlayerToken::from_cookies(cookies);
-    if let Err(a) = player_token {
-        return Err(a.to_string())
-    }
-    let player_token = player_token.unwrap();
-    if player_token.player_id != room.host_player_id {
-        return Err("Only the host can start the game!".to_string())
-    }
-
-    // get players from repository
-    let players = &player_repo.players.lock().await;
-    let player_teams = room.player_teams.clone();
-    let mut not_found_players: Vec<&str> = Vec::new();
-    //check if all players exist in repo
-    player_teams.into_iter().for_each(|(_team_id, teams)| {
-        for player_id in teams {
-            let player = players.get(&player_id);
-            if player.is_none() {
-                // check if player id at least exists in room player list
-                // if not, there is a programming error in the front end application
-                let player = room.players.into_iter().find(|(id, _player)| *id == player_id);
-                if player.is_none() {
-                    panic!("A player id is not found in room player list! All player ids in team must be valid. This means the front end application contains an error.");
-                }
-                let player = player.unwrap();
-                not_found_players.push(&player.name);
-            }
-        }
-    });
-    //players not found
-    if not_found_players.len() > 0 {
-        let mut error_message = String::new();
-        if not_found_players.len() == 1 {
-            error_message.push_str(format!("Player not found: {}", not_found_players[0]).as_str());
-        } else {
-            error_message.push_str("Players not found:");
-            error_message.push_str(not_found_players.join(", ").as_str());
-        }
-        return Err(error_message);
-    }
-    
-    let game = Game::create(room);
+    let game = Game::start(&mut room.clone())?;
     Ok(Json(game))
 }

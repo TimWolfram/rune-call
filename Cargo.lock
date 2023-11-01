@@ -1187,17 +1187,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rune-call"
-version = "0.1.0"
-dependencies = [
- "bcrypt",
- "futures",
- "jsonwebtoken",
- "rocket",
- "serde",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1596,6 +1585,18 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "troefcall"
+version = "0.1.0"
+dependencies = [
+ "bcrypt",
+ "futures",
+ "jsonwebtoken",
+ "rand",
+ "rocket",
+ "serde",
 ]
 
 [[package]]
