@@ -13,8 +13,19 @@ pub struct UserRepository {
 }
 impl Default for UserRepository {
     fn default() -> Self {
+        let default_admin = User{
+                        id: 0, 
+                        username: "admin".to_string(),
+                        password_hash: password::hash_password("@dm1n15tr4t0r!").unwrap(),
+                        nickname: "👍Admin👍".to_string(),
+                        role: Role::Admin
+                    };
         UserRepository {
-            users: Mutex::new(HashMap::new()),
+            users: Mutex::new (
+                HashMap::from (
+                    [(0, default_admin)]
+                )
+            ),
             usernames: Mutex::new(HashMap::new()),
             user_count: AtomicUsize::new(1),
         }
@@ -22,7 +33,6 @@ impl Default for UserRepository {
 }
 impl UserRepository {
     pub async fn create_user<'a>(&'a self, username: &str, password: &'a str, role: Role) -> Result<User, &'a str> {
-        
         let username = username.to_string();
         let usernames = &mut self.usernames.lock().await;
         if usernames.contains_key(&username) {

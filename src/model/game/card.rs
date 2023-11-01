@@ -1,16 +1,17 @@
-#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq)]
 pub struct Card {
     pub suit : Suit,
-    pub value : u32,
+    pub value : u8,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Suit {
     Spades,
     Hearts,
     Clubs,
     Diamonds,
 }
+
 impl Suit {
     pub fn iter() -> impl Iterator<Item = Suit> {
         [Suit::Spades, 

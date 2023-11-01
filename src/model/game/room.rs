@@ -1,34 +1,30 @@
 use crate::model::{game::Player, login::User};
-use crate::model::game::Game;
-
 use serde::{Deserialize, Serialize};
 
+pub type RoomId = usize;
+
 #[derive(Serialize, Deserialize, Clone)]
+
 pub struct Room {
-    pub id: usize,
+    pub id: RoomId,
     pub name: String,
     pub password: String,
     pub players: [Option<Player>;4],
-    pub host_user_id: usize,
-    pub game: Option<Game>,
-    pub game_history: Vec<Game
+    pub host_id: usize,
 }
 
 impl Room {
     pub fn new(id: usize, name: String, password: String, host_user: &User) -> Self {
         Room {
             id,
-            host_user_id: host_user.id,
+            host_id: host_user.id,
             name,
             password,
             players: [
-                Some(Player::new(host_user,
-                    host_user.nickname.clone())),
+                Some(Player::from(host_user)),
                     None,
                     None,
                     None],
-            game: None,
-            game_history: Vec::new(),
         }
     }
 }

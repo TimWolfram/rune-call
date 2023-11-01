@@ -36,6 +36,7 @@ fn rocket() -> _ {
         //add state: using in-memory repositories instead of databases
         .manage(UserRepository::default())
         .manage(RoomRepository::default())
+        .manage(GameRepository::default())
 }
 
 #[get("/secret")]

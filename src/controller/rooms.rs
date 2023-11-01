@@ -12,13 +12,11 @@ impl Room {
             id,
             name: room_name,
             password: room_password,
-            host_user_id: host_player.user_id,
+            host_id: host_player.user_id,
             players: [Some(host_player.clone()),
                 None,
                 None,
                 None],
-            game: None,
-            game_history: Vec::new(),
         }
     }
     pub fn add_player(&mut self, player: &Player, index: usize) -> bool {
@@ -39,14 +37,15 @@ impl Room {
 // return a list of all rooms
 #[get("/rooms", format = "json")]
 pub async fn get_rooms(room_repo: &State<RoomRepository>) -> Json<Vec<Room>> {
-    Json(room_repo.rooms.lock().await.values().cloned().collect())
+    Json(room_repo.get_rooms().await)
 }
 
 // get room by id (join room -- requires room code)
 #[get("/rooms/<id>")]
 pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) 
 -> Option<Json<Room>> {
-    if let Some(room) = room_repo.rooms.lock().await.get(&id) {
+    
+    if let Some(room) = room_repo.get_room_by_id(id).await {
         return Some(Json(room.clone()));
     }
     None
@@ -59,10 +58,10 @@ pub async fn swap_player_seats<'a> (room_id: usize,
                                     cookies: &'a CookieJar<'a>) 
 -> Result<Json<Room>, &'static str> {
     //only host can swap player seats: check if logged in player is host of room
-    LoginToken::from_cookies(cookies)?.user_id;
-    let mut rooms = room_repo.get_room_by_host(host_user_id).await;
-    let room = rooms.get_mut(&room_id).ok_or("Room not found!")?;
-    room.swap_player_seats(player1_index, player2_index);
+    let host_user_id = LoginToken::from_cookies(cookies)?.user_id;
+    let mut room = room_repo.get_room_by_host(host_user_id).await?;
+    let swap = swap.into_inner();
+    room.swap_player_seats(swap.0, swap.1);
     Ok(Json(room.clone()))
 }
 
@@ -98,47 +97,54 @@ pub async fn delete_room<'a>(
         return (Status::Unauthorized, "User must be host or admin to delete room!");
     }
 
-    match room_repo.rooms.lock().await.remove(&id) {
-        None => (Status::NotFound, "User must be host or admin to delete room!"),
-        Some(_) => (Status::Ok, "Succesfully deleted room!"),
+    match room_repo.delete_room(&id).await {
+        Err(x) => (Status::NotFound, x),
+        Ok(..) => (Status::Ok, "Succesfully deleted room!"),
     }
 }
     
 // create room
-#[post("/rooms", format = "json", data = "<create_room_form>")]
-pub async fn create_room<'a>(
+#[post("/rooms", data = "<create_room_form>")]
+pub async fn create_room(
     create_room_form: Json<CreateRoomForm>,
     room_repo: &State<RoomRepository>,
     user_repo: &State<UserRepository>,
-    cookies: &'a CookieJar<'a>) 
--> (Status, Result<Json<Room>, &'a str>) {
-    println!("create_room_form: {:?}", create_room_form);
-
-    if create_room_form.name.len() < 3 {
+    cookies: &CookieJar<'_>) 
+-> (Status, Result<Json<Room>, &'static str>) {
+    let name = create_room_form.name.clone();
+    if name.len() < 3 {
         return (Status::BadRequest, Err("Room name must be at least 3 characters long!"));
     }
+    let password = create_room_form.password.clone();
+    
     //get currently logged in user
     let login_token = LoginToken::from_cookies(cookies);
     if let Err(e) = login_token {
         return (Status::Unauthorized, Err(e));
     }
     let user_id = login_token.unwrap().user_id;
-    let rooms = room_repo.rooms.lock().await;
-    if rooms.contains_key(&user_id) {
-        return (Status::BadRequest, Err("Player is already hosting a room!"));
+    let user = user_repo.get(user_id).await;
+    if user.is_none() {
+        return (Status::Unauthorized, Err("User does not exist!"));
     }
+    
     //find user
     let host_user = user_repo
         .get(user_id).await
         .ok_or("User does not exist!");
-
     if let Err(reason) = host_user {
         return (Status::Unauthorized, Err(reason));
     }
-    let host_player = Player::from(host_user.unwrap());
-    let room_id = room_repo.room_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let from_form = Room::create_from_form(room_id, create_room_form.name.clone(), create_room_form.password.clone(), &host_player);
-    (Status::Ok, Ok(Json(from_form)))
+    let host_user = host_user.unwrap();
+    let room = room_repo.create_room(&host_user, name, password).await;
+    if let Err(e) = room {
+        return (Status::BadRequest, Err(e));
+    }
+
+    match room {
+        Err(reason) => (Status::BadRequest, Err(reason)),
+        Ok(room) => (Status::Ok, Ok(Json(room))),
+    }
 }
 
 //join room

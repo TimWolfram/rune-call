@@ -5,6 +5,7 @@ pub mod game {
     
     mod room;
     pub use room::Room;
+    pub use room::RoomId;
 
     mod round;
     pub use round::Round;

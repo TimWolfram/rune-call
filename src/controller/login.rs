@@ -24,7 +24,7 @@ pub async fn logout(cookies: &CookieJar<'_>) -> Result<(), ()> {
     Ok(())
 }
 
-#[get("/login", data="<form>")]
+#[post("/login", data="<form>")]
 pub async fn register<'a>(user_repo: &'a State<UserRepository>, form: Json<LoginForm<'a>>, cookies: &CookieJar<'a>) -> Result<Json<User>, &'a str> {
     if LoginToken::from_cookies(cookies).is_ok() {
         return Err("User is already logged in!");
