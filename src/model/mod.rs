@@ -9,10 +9,12 @@ pub mod game {
 
     mod round;
     pub use round::Round;
+    pub use round::PlayedCard;
 
     mod game;
     pub use game::Game;
     pub use game::GameState;
+    pub use game::EndGameReason;
 
     mod player;
     pub use player::Player;

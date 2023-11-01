@@ -8,7 +8,7 @@ type RoomId = usize;
 type Map<K, V> = Mutex<HashMap<K, V>>;
 
 use crate::controller::password;
-use crate::model::game::Room;
+use crate::model::game::{Room, Game};
 pub struct RoomRepository {
     rooms: Map<RoomId, Room>, //stores rooms by room id
     hosts: Map<UserId, RoomId>, //stores room ids by host user id

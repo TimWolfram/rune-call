@@ -7,14 +7,12 @@ type Map<K, V> = Mutex<HashMap<K, V>>;
 
 pub struct GameRepository {
     games: Map<RoomId, Game>, //stores games by room id
-    game_count: AtomicUsize, //generates new ids for games
 }
 
 impl Default for GameRepository {
     fn default() -> Self {
         GameRepository {
             games: Mutex::new(HashMap::new()),
-            game_count: AtomicUsize::new(1),
         }
     }
 }
@@ -31,11 +29,8 @@ impl GameRepository{
     pub async fn get_game_from_room(&self, room_id: usize) -> Option<Game> {
         self.games.lock().await.get(&room_id).cloned()
     }
-    pub async fn delete_game(&self, game_id: usize) -> Option<Game> {
+    pub async fn update_game(&self, room_id: usize, game: Game) -> bool {
         let mut games = self.games.lock().await;
-        games.remove(&game_id)
-    }
-    pub async fn update_game(&self, game: Game) -> Option<Game> {
-        todo!()
+        games.insert(room_id, game).is_none()
     }
 }

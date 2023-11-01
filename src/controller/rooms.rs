@@ -42,9 +42,7 @@ pub async fn get_rooms(room_repo: &State<RoomRepository>) -> Json<Vec<Room>> {
 
 // get room by id (join room -- requires room code)
 #[get("/rooms/<id>")]
-pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) 
--> Option<Json<Room>> {
-    
+pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) -> Option<Json<Room>> {
     if let Some(room) = room_repo.get_room_by_id(id).await {
         return Some(Json(room.clone()));
     }
@@ -58,9 +56,9 @@ pub async fn swap_player_seats<'a> (room_id: usize,
                                     cookies: &'a CookieJar<'a>) 
 -> Result<Json<Room>, &'static str> {
     //only host can swap player seats: check if logged in player is host of room
-    let host_user_id = LoginToken::from_cookies(cookies)?.user_id;
-    let mut room = room_repo.get_room_by_host(host_user_id).await?;
-    let swap = swap.into_inner();
+    let host_user_id: usize = LoginToken::from_cookies(cookies)?.user_id;
+    let swap: (usize, usize) = swap.into_inner();
+    let mut room: Room = room_repo.get_room_by_host(host_user_id).await?;
     room.swap_player_seats(swap.0, swap.1);
     Ok(Json(room.clone()))
 }
@@ -86,7 +84,6 @@ pub async fn delete_room<'a>(
         return (Status::Unauthorized, reason);
     }
     let host = host.unwrap();
-    
     let authorized = match host.role {
         Role::Admin => true,
         Role::Player => {
@@ -96,7 +93,6 @@ pub async fn delete_room<'a>(
     if !authorized {
         return (Status::Unauthorized, "User must be host or admin to delete room!");
     }
-
     match room_repo.delete_room(&id).await {
         Err(x) => (Status::NotFound, x),
         Ok(..) => (Status::Ok, "Succesfully deleted room!"),

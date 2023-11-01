@@ -5,7 +5,10 @@ use crate::model::login::{LoginForm, User, LoginToken, Role};
 use crate::repository::UserRepository;
 
 #[get("/login", data="<form>")]
-pub async fn login<'a>(user_repo: &State<UserRepository>, form: Json<LoginForm<'a>>, cookies: &'a CookieJar<'a>) -> Result<Json<User>, &'static str> {
+pub async fn login<'a>(user_repo: &State<UserRepository>,
+    form: Json<LoginForm<'a>>,
+    cookies: &'a CookieJar<'a>)
+-> Result<Json<User>, &'static str> {
     let user = user_repo.get_by_username(form.username).await;
     if let None = user {
         return Err("User not found!");
@@ -17,17 +20,18 @@ pub async fn login<'a>(user_repo: &State<UserRepository>, form: Json<LoginForm<'
     LoginToken::create(user.id, cookies)?;
     Ok(Json(user))
 }
-
 #[delete("/login")]
 pub async fn logout(cookies: &CookieJar<'_>) -> Result<(), ()> {
     LoginToken::remove_cookie(cookies);
     Ok(())
 }
-
 #[post("/login", data="<form>")]
-pub async fn register<'a>(user_repo: &'a State<UserRepository>, form: Json<LoginForm<'a>>, cookies: &CookieJar<'a>) -> Result<Json<User>, &'a str> {
+pub async fn register<'a>(user_repo: &'a State<UserRepository>,
+    form: Json<LoginForm<'a>>,
+    cookies: &CookieJar<'a>)
+-> Result<Json<User>, &'a str> {
     if LoginToken::from_cookies(cookies).is_ok() {
-        return Err("User is already logged in!");
+        return Err("Cannot create account when user is already logged in!");
     }
     let username = form.username;
     if username.len() < 3 {
@@ -40,4 +44,21 @@ pub async fn register<'a>(user_repo: &'a State<UserRepository>, form: Json<Login
     let user = user_repo.create_user(username, password, Role::Player).await?;
     LoginToken::create(user.id, cookies)?;
     Ok(Json(user))
+}
+#[delete("/login/<user_id>")]
+pub async fn delete_user<'a>(user_id: usize,
+    user_repo: &'a State<UserRepository>,
+    cookies: &CookieJar<'a>)
+-> Result<(), &'a str> {
+    let login_token = LoginToken::from_cookies(cookies)?;
+    let user = user_repo.get(login_token.user_id).await
+        .ok_or("User not found!")?;
+    match user.role {
+        Role::Admin => (),
+        _ if user.id != user_id => return Err("User can only delete their own account!"),
+        _ => (),
+    }
+    user_repo.remove_user(user_id).await;
+    LoginToken::remove_cookie(cookies);
+    Ok(())
 }

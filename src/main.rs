@@ -21,15 +21,18 @@ fn rocket() -> _ {
                 login::login,
                 login::logout,
                 login::register,
+                login::delete_user,
                 
                 rooms::get_rooms,
                 rooms::get_room,
                 rooms::create_room,
+                rooms::delete_room,
 
                 games::get_game,
                 games::create_game,
+                games::play_card,
+                games::forfeit,
                 // games::get_games, //games history - NYI
-
                 secret,
             ],
         )

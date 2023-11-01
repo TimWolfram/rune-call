@@ -45,9 +45,6 @@ impl UserRepository {
         usernames.insert(username, id);
         Ok(user)
     }
-    pub async fn remove_user(&self, id: UserId) -> Option<User> {
-        self.users.lock().await.remove(&id)
-    }
     pub async fn get(&self, id: UserId) -> Option<User> {
         self.users.lock().await.get(&id).cloned()
     }
@@ -58,5 +55,8 @@ impl UserRepository {
             Some(user_id) => return self.users.lock().await.get(&user_id).cloned(),
             None => None
         }
+    }
+    pub async fn remove_user(&self, id: UserId) -> Option<User> {
+        self.users.lock().await.remove(&id)
     }
 }
