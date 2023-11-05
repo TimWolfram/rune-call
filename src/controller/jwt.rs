@@ -33,7 +33,15 @@ impl LoginToken {
         };
     }
 
-    pub fn from_cookies(cookies: &CookieJar<'_>) -> Result<LoginToken, &'static str> {
+    /// Refresh the JWT and store it in the cookies
+    pub fn try_refresh(cookies: &CookieJar<'_>) -> Result<usize, &'static str> {
+        let user_id = LoginToken::from_cookies(cookies)?;
+        LoginToken::create(user_id, cookies)?;
+        return Ok(user_id);
+    }
+
+    /// Get the user_id from the JWT stored in the cookies
+    pub fn from_cookies(cookies: &CookieJar<'_>) -> Result<usize, &'static str> {
         let jwt = cookies.get_private(COOKIE_NAME);
         if let Some(cookie) = jwt {
             let jwt: &str = &cookie.value();
@@ -42,7 +50,7 @@ impl LoginToken {
             let token_data = jsonwebtoken::decode::<LoginToken>(jwt, decoding_key, validation);
             
             return match token_data {
-                Ok(token_data) => Ok(token_data.claims),
+                Ok(token_data) => Ok(token_data.claims.user_id),
                 Err(_) => Err("Player not logged in: invalid token!"),
             };
         } else {

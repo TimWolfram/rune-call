@@ -1,6 +1,6 @@
 use bcrypt::{DEFAULT_COST, verify, hash};
 
-pub fn hash_password(password: &str) -> Result<String, &str> {
+pub fn hash_password(password: &str) -> Result<String, &'static str> {
     hash(password, DEFAULT_COST).or(Err("Error while hashing password!"))
 }
 

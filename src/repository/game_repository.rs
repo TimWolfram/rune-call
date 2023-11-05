@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::atomic::AtomicUsize};
+use std::collections::HashMap;
 use rocket::tokio::sync::Mutex;
 
-use crate::model::{game::{Game, Room, RoomId}, login::User};
+use crate::model::game::{Game, Room, RoomId};
 
 type Map<K, V> = Mutex<HashMap<K, V>>;
 
@@ -29,8 +29,8 @@ impl GameRepository{
     pub async fn get_game_from_room(&self, room_id: usize) -> Option<Game> {
         self.games.lock().await.get(&room_id).cloned()
     }
-    pub async fn update_game(&self, room_id: usize, game: Game) -> bool {
+    pub async fn update_game(&self, room_id: usize, game: Game) -> () {
         let mut games = self.games.lock().await;
-        games.insert(room_id, game).is_none()
+        games.insert(room_id, game);
     }
 }

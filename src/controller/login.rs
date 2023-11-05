@@ -50,13 +50,11 @@ pub async fn delete_user<'a>(user_id: usize,
     user_repo: &'a State<UserRepository>,
     cookies: &CookieJar<'a>)
 -> Result<(), &'a str> {
-    let login_token = LoginToken::from_cookies(cookies)?;
-    let user = user_repo.get(login_token.user_id).await
-        .ok_or("User not found!")?;
-    match user.role {
-        Role::Admin => (),
-        _ if user.id != user_id => return Err("User can only delete their own account!"),
-        _ => (),
+    let login_user_id = LoginToken::from_cookies(cookies)?;
+    let user = user_repo.get(user_id).await?;
+    if user.role != Role::Admin
+        && user.id != login_user_id {
+            return Err("User can only delete their own account!");
     }
     user_repo.remove_user(user_id).await;
     LoginToken::remove_cookie(cookies);

@@ -16,6 +16,6 @@ pub enum GameState {
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub enum EndGameReason {
-    Forfeit{forfeiting_player: Player},
+    Forfeit{player: Player},
     Score{score: [usize;2]},
 }

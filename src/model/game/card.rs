@@ -19,20 +19,20 @@ impl Suit {
         Suit::Clubs, 
         Suit::Diamonds].into_iter()
     }
-    pub fn to_char(&self) -> char {
-        match self {
-            Suit::Spades => '♠',
-            Suit::Hearts => '♥',
-            Suit::Clubs => '♣',
-            Suit::Diamonds => '♦',
-        }
-    }
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            Suit::Spades => "Spades",
-            Suit::Hearts => "Hearts",
-            Suit::Clubs => "Clubs",
-            Suit::Diamonds => "Diamonds",
-        }
-    }
+    // pub fn to_char(&self) -> char {
+    //     match self {
+    //         Suit::Spades => '♠',
+    //         Suit::Hearts => '♥',
+    //         Suit::Clubs => '♣',
+    //         Suit::Diamonds => '♦',
+    //     }
+    // }
+    // pub fn to_str(&self) -> &'static str {
+    //     match self {
+    //         Suit::Spades => "Spades",
+    //         Suit::Hearts => "Hearts",
+    //         Suit::Clubs => "Clubs",
+    //         Suit::Diamonds => "Diamonds",
+    //     }
+    // }
 }

@@ -1,4 +1,6 @@
-use crate::model::game::{Card, EndGameReason, Game, GameState, Player, Room, RoomId, Suit, PlayedCard};
+use crate::model::game::{
+    Card, EndGameReason, Game, GameState, PlayedCard, Player, Room, RoomId, Suit,
+};
 use crate::model::login::{LoginToken, Role, UserId};
 use crate::repository::{GameRepository, RoomRepository, UserRepository};
 
@@ -87,6 +89,13 @@ impl Game {
         }
         valid_cards
     }
+    pub fn is_in_progress(&self) -> bool {
+        if let GameState::Finished { .. } = self.game_state {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 //get game by id (join game -- requires room code)
@@ -107,32 +116,36 @@ pub async fn get_game<'a>(
     Ok(Json(game.clone()))
 }
 // create(start) game
-#[post("/rooms/<id>/game")]
+#[post("/rooms/<room_id>/game")]
 pub async fn create_game(
-    id: UserId,
+    room_id: usize,
     room_repo: &State<RoomRepository>,
     user_repo: &State<UserRepository>,
     game_repo: &State<GameRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Json<Game>, &'static str> {
     // first check if player is logged in before trying to create game; if not, no need to lock mutex
-    let player_token = LoginToken::from_cookies(cookies)?;
-    if user_repo.get(player_token.user_id).await.is_none() {
-        return Err("User does not exist!");
+    let logged_in_user_id = LoginToken::try_refresh(cookies)?;
+
+    let user = user_repo.get(logged_in_user_id).await?;
+    if user.current_room != Some(room_id) {
+        return Err("User is not in room!");
     }
     // get room
     let room = room_repo
-        .get_room_by_id(id)
+        .get_room_by_id(room_id)
         .await
         .ok_or("Room not found!")?;
+
+    let authorized = (user.role == Role::Admin) | (logged_in_user_id != room.host_id);
+    if !authorized {
+        return Err("Only the host can start the game!");
+    }
     if room.players.len() < 3 {
         return Err("Not enough players in room to start game! You need at least 3 players.");
     }
     if game_repo.get_game_from_room(room.id).await.is_some() {
         return Err("Game already started!");
-    }
-    if player_token.user_id != room.host_id {
-        return Err("Only the host can start the game!");
     }
     let game = game_repo.create_game(room).await?;
     Ok(Json(game.clone()))
@@ -147,7 +160,7 @@ pub async fn play_card(
     card: Json<Card>,
     cookies: &CookieJar<'_>,
 ) -> Result<Json<Game>, &'static str> {
-    let player_token = LoginToken::from_cookies(cookies)?;
+    let user_id = LoginToken::try_refresh(cookies)?;
     let room = room_repo
         .get_room_by_id(room_id)
         .await
@@ -157,9 +170,12 @@ pub async fn play_card(
         .await
         .ok_or("Game not found!")?;
     let card = card.into_inner();
-    let user_id = player_token.user_id;
-    if let GameState::Playing { ref mut current_round, tjall: _, } = game.game_state {
-        let user = user_repo.get(user_id).await.ok_or("User not found!")?;
+    if let GameState::Playing {
+        ref mut current_round,
+        tjall: _,
+    } = game.game_state
+    {
+        let user = user_repo.get(user_id).await?;
 
         // check if it is player's turn (or player is admin)
         let player_turn = current_round.played_cards.len();
@@ -171,7 +187,8 @@ pub async fn play_card(
             room.players.iter().position(|room_player| {
                 room_player.as_ref().map_or(false, |p| p.user_id == user_id)
             })
-        }.ok_or("You are not a player in this room!")?;
+        }
+        .ok_or("You are not a player in this room!")?;
         if index != player_turn {
             return Err("It is not your turn!");
         }
@@ -206,37 +223,33 @@ pub async fn play_card(
 #[delete("/rooms/<room_id>/game", format = "json")]
 pub async fn forfeit(
     room_id: RoomId,
-    room_repo: &State<RoomRepository>,
     game_repo: &State<GameRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Json<Game>, &'static str> {
-    let player_token = LoginToken::from_cookies(cookies)?;
-    let room = room_repo
-        .get_room_by_id(room_id)
-        .await
-        .ok_or("Room not found!")?;
+    let user_id = LoginToken::try_refresh(cookies)?;
+    let game = forfeit_player(game_repo, room_id, user_id).await?;
+    Ok(Json(game))
+}
+pub async fn forfeit_player (game_repo: &State<GameRepository>, room_id: RoomId, user_id: UserId) -> Result<Game, &'static str>{
     let mut game = game_repo
         .get_game_from_room(room_id)
         .await
         .ok_or("Game not found!")?;
+    // check if game is already finished
+    if let GameState::Finished { .. } = game.game_state {
+        return Err("Game is already finished!");
+    }
     // determine winners based on if index is odd or even
-    let index = room
+    let room_player_index = game
         .players
         .iter()
-        .position(|p| {
-            p.as_ref()
-                .map_or(false, |p| p.user_id == player_token.user_id)
-        })
-        .ok_or("You are not a player in this room!")?;
-    let winners = match index % 2 {
-        0 =>
-        // even
-        {
+        .position(|p| p.user_id == user_id)
+        .ok_or("User is not a player in this game!")?;
+    let winners = match room_player_index % 2 {
+        0 => { //even
             [game.players[1].clone(), game.players[3].clone()]
         }
-        1 =>
-        // odd
-        {
+        1 => { // odd
             [game.players[0].clone(), game.players[2].clone()]
         }
         _ => unreachable!(),
@@ -245,12 +258,84 @@ pub async fn forfeit(
     game.game_state = GameState::Finished {
         winners,
         reason: EndGameReason::Forfeit {
-            forfeiting_player: game.players[index].clone(),
+            player: game.players[room_player_index].clone(),
         },
     };
-    let success = game_repo.update_game(room.id, game.clone()).await;
-    match success {
-        true => Ok(Json(game)),
-        false => Err("Game not found!"),
+    game_repo.update_game(room_id, game.clone()).await;
+    Ok(game)
+}
+#[get("/rooms/<room_id>/game/cards")]
+pub async fn get_cards(
+    room_id: RoomId,
+    room_repo: &State<RoomRepository>,
+    game_repo: &State<GameRepository>,
+    user_repo: &State<UserRepository>,
+    cookies: &CookieJar<'_>,
+) -> Result<Json<Vec<Card>>, &'static str> {
+    let user_id = LoginToken::try_refresh(cookies)?;
+    room_repo
+        .get_room_by_id(room_id)
+        .await
+        .ok_or("Room not found!")?;
+    let game = game_repo
+        .get_game_from_room(room_id)
+        .await
+        .ok_or("Game not found!")?;
+    user_repo.get(user_id).await?;
+
+    let player = game
+        .players
+        .iter()
+        .find(|p| p.user_id == user_id)
+        .ok_or("You are not a player in this room!")?;
+    if let GameState::Playing {
+        current_round,
+        tjall: _,
+    } = game.game_state
+    {
+        let round_opening_card = current_round.played_cards[0].card.clone();
+        let valid_cards = Game::valid_cards(player.clone(), round_opening_card.suit);
+        Ok(Json(valid_cards))
+    } else {
+        Err("Game is not in progress!")
+    }
+}
+
+#[get("/rooms/<room_id>/game/cards/<player_index>")]
+pub async fn get_cards_admin(
+    room_id: RoomId,
+    room_repo: &State<RoomRepository>,
+    game_repo: &State<GameRepository>,
+    user_repo: &State<UserRepository>,
+    player_index: usize,
+    cookies: &CookieJar<'_>,
+) -> Result<Json<Vec<Card>>, &'static str> {
+    let logged_in_user = user_repo.get(LoginToken::try_refresh(cookies)?).await?;
+    if let Role::Admin = logged_in_user.role {
+    } else {
+        return Err("You are not an admin!");
+    }
+
+    // user is admin: get cards for player at index
+    room_repo
+        .get_room_by_id(room_id)
+        .await
+        .ok_or("Room not found!")?;
+    let game = game_repo
+        .get_game_from_room(room_id)
+        .await
+        .ok_or("Game not found!")?;
+
+    let player = game.players[player_index].clone();
+    if let GameState::Playing {
+        current_round,
+        tjall: _,
+    } = game.game_state
+    {
+        let round_opening_card = current_round.played_cards[0].card.clone();
+        let valid_cards = Game::valid_cards(player.clone(), round_opening_card.suit);
+        Ok(Json(valid_cards))
+    } else {
+        Err("Game is not in progress!")
     }
 }
