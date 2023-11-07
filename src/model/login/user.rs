@@ -5,6 +5,7 @@ pub type UserId = usize;
 pub struct User {
     pub id: UserId,
     pub username: String,
+    #[serde(skip_serializing)]
     pub password_hash: String,
     pub nickname: String,
     pub role: Role,

@@ -9,7 +9,6 @@ pub mod game {
 
     mod round;
     pub use round::Round;
-    pub use round::PlayedCard;
 
     mod game;
     pub use game::Game;

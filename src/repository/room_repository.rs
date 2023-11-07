@@ -60,9 +60,9 @@ impl RoomRepository {
         let hosts = self.hosts.lock().await;
         hosts.get(&user_id) == Some(&room_id)
     }
-    pub async fn get_room_by_id(&self, room_id: RoomId) -> Option<Room> {
+    pub async fn get_room_by_id(&self, room_id: RoomId) -> Result<Room, &'static str> {
         let rooms = self.rooms.lock().await;
-        rooms.get(&room_id).cloned()
+        rooms.get(&room_id).cloned().ok_or("Game not found!")
     }
     pub async fn create_room(&self, host_user: &mut User, name: String, mut password: String) -> Result<Room, &'static str> {
         if host_user.current_room.is_some() {

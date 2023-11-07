@@ -26,8 +26,10 @@ impl GameRepository{
         games.insert(room_id, game.clone());
         Ok(game)
     }
-    pub async fn get_game_from_room(&self, room_id: usize) -> Option<Game> {
-        self.games.lock().await.get(&room_id).cloned()
+    pub async fn get_game_from_room(&self, room_id: usize) -> Result<Game, &'static str> {
+        self.games.lock().await
+            .get(&room_id).cloned()
+            .ok_or("Game not found!")
     }
     pub async fn update_game(&self, room_id: usize, game: Game) -> () {
         let mut games = self.games.lock().await;

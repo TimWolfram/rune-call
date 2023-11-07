@@ -1,5 +1,6 @@
+// controller for rooms; endpoints & logic
 use crate::model::game::{CreateRoomForm, Player, Room};
-use crate::model::login::{LoginToken, Role};
+use crate::model::login::{LoginToken, Role, LoginForm};
 use crate::repository::{UserRepository, RoomRepository, GameRepository};
 
 use rocket::http::{CookieJar, Status};
@@ -35,7 +36,7 @@ pub async fn get_rooms_public_paged(room_repo: &State<RoomRepository>, page: usi
 }
 #[get("/rooms/<id>", format = "json")]
 pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) -> Option<Json<Room>> {
-    if let Some(room) = room_repo.get_room_by_id(id).await {
+    if let Ok(room) = room_repo.get_room_by_id(id).await {
         return Some(Json(room.clone()));
     }
     None
@@ -85,7 +86,7 @@ pub async fn swap_player_seats<'a> (
 -> Result<Json<Room>, &'static str> {
     //only host can swap player seats: check if logged in player is host of room
     let host_user_id: usize = LoginToken::try_refresh(cookies)?;
-    let mut room: Room = room_repo.get_room_by_id(room_id).await.ok_or("room_not_found")?;
+    let mut room: Room = room_repo.get_room_by_id(room_id).await?;
     if room.host_id != host_user_id { return Err("Only the host can swap player seats!"); }
     let swap: (usize, usize) = swap.into_inner();
     room.swap_player_seats(swap.0, swap.1);
@@ -109,10 +110,11 @@ pub async fn delete_room<'a>(
     if let Err(e) = host {
         return (Status::Unauthorized, e);
     }
-    let room = room_repo.get_room_by_id(room_id).await.ok_or("Room not found!");
+    let room = room_repo.get_room_by_id(room_id).await;
     if let Err(e) = room {
         return (Status::NotFound, e);
     }
+    let room = room.unwrap();
     let mut host = host.unwrap();
     let authorized = match host.role {
         Role::Admin => true,
@@ -121,30 +123,38 @@ pub async fn delete_room<'a>(
     if !authorized {
         return (Status::Unauthorized, "User must be host or admin to delete this room!");
     }
-    user_repo.clear_room(&room.unwrap()).await;
+    user_repo.clear_room(&room).await;
     room_repo.delete_room(&room_id).await;
     host.current_room = None;
     user_repo.update(host).await;
     (Status::Ok, "Succesfully deleted room!")
 }
-
-#[put("/rooms/<room_id>/players/<player_index>", format = "json")]
+#[post("/rooms/<room_id>/players/<player_index>", format = "json", data = "<player>")]
 pub async fn join_room<'a>(
     room_id: usize,
     user_repo: &State<UserRepository>,
     room_repo: &State<RoomRepository>,
     player_index: usize,
+    player: Option<Json<LoginForm<'_>>>,
     cookies: &CookieJar<'a> ) 
 -> Result<Json<Room>, &'a str> {
     let user_id = LoginToken::try_refresh(cookies).unwrap();
     let mut user = user_repo.get(user_id).await?;
+    if user.role == Role::Admin {
+        if let Some(player) = player {
+            // admin can join as any other user
+            user = user_repo.get_by_username(player.username).await?;
+        }
+    }
+    if user.current_room.is_some() {
+        return Err("User is already in a room! Leave the room before joining another one!");
+    }
     user.current_room = Some(room_id);
     let player = Player::from(&user);
-    let room = &mut room_repo.get_room_by_id(room_id).await.ok_or("Room not found!")?;
+    let room = &mut room_repo.get_room_by_id(room_id).await?;
     room.add_player(player, player_index)?;
     Ok(Json(room.clone()))
 }
-
 // #[delete("/rooms/<room_id>/players/<player_id>", format = "json")]
 // pub async fn kick_player<'a>(
 //     room_id: usize,
@@ -177,13 +187,13 @@ pub async fn leave_room<'a>(
     }
     // check if room game is in progress
     let game = game_repo.get_game_from_room(room_id).await;
-    if let Some(game) = game {
+    if let Ok(game) = game {
         if game.is_in_progress() {
             return Err("Cannot leave room while game is in progress! Finish or forfeit the game first!");
         }
     }
     
-    let mut room = room_repo.get_room_by_id(room_id).await.ok_or("Room not found!")?;
+    let mut room = room_repo.get_room_by_id(room_id).await?;
     let mut host_found = false;
     // check if user is host
     if room_repo.user_is_host(user_id, room_id).await {

@@ -1,5 +1,5 @@
 use crate::model::game::{
-    Card, EndGameReason, Game, GameState, PlayedCard, Player, Room, RoomId, Suit,
+    Card, EndGameReason, Game, GameState, Player, Room, RoomId, Suit, Round,
 };
 use crate::model::login::{LoginToken, Role, UserId};
 use crate::repository::{GameRepository, RoomRepository, UserRepository};
@@ -81,7 +81,8 @@ impl Game {
         };
         Ok(game)
     }
-    pub fn valid_cards(player: Player, suit: Suit) -> Vec<Card> {
+    /// Get the valid cards that a player can play.
+    pub fn valid_cards(player: &Player, suit: Suit) -> Vec<Card> {
         let mut valid_cards = player.current_cards.clone();
         // if player has suit, that suit must be played
         if valid_cards.iter().any(|card| card.suit == suit) {
@@ -89,11 +90,80 @@ impl Game {
         }
         valid_cards
     }
+    /// Check if game is in progress.
+    /// Returns true if game state is not `Finished`.
     pub fn is_in_progress(&self) -> bool {
         if let GameState::Finished { .. } = self.game_state {
             false
         } else {
             true
+        }
+    }
+    /// Pick a tjall suit aka trump aka "troef".
+    /// This starts the game; changing its state from `Starting` to `Playing`.
+    pub fn pick_tjall_and_start(&mut self, suit: Suit) -> Result<(), &'static str> {
+        if let GameState::Starting { remaining_deck: _ } = &mut self.game_state {
+            self.game_state = GameState::Playing {
+                current_round: Round {
+                    played_cards: Vec::new(),
+                    starting_player_index: 0,
+                    round_winner: None,
+                },
+                tjall: suit,
+            };
+            Ok(())
+        } else {
+            Err("Game is not starting!")
+        }
+    }
+    /// Play a card.
+    pub fn play_card(&mut self, card: Card, index: usize) -> Result<(), &'static str> {
+        // check if player has card
+        let player = &self.players[index];
+        if !player.current_cards.contains(&card) {
+            return Err("You do not have this card!");
+        }
+        if let GameState::Playing { ref mut current_round, tjall } = self.game_state {
+            let round_opening_card = &current_round.played_cards[0];
+            let valid_cards = Game::valid_cards(player, round_opening_card.suit);
+            if !valid_cards.contains(&card) {
+                return Err("You cannot play this card! If you have a card of the same suit, you must play it.");
+            }
+            current_round.played_cards.push(card.clone());
+            // remove card from player's hand
+            self.players[index].current_cards.retain(|c| c.clone() != card);
+            // check if round is finished
+            if current_round.played_cards.len() == 4 {
+                // determine winner
+                let mut winning_card = &current_round.played_cards[0];
+                for played_card in &current_round.played_cards {
+                    winning_card = Card::compare(winning_card, played_card, tjall);
+                }
+            }
+            Ok(())
+        } else {
+            return Err("Game is not in progress!")
+        }
+    }
+}
+
+impl Card {
+    pub fn compare<'a>(highest: &'a Card, new: &'a Card, tjall: Suit) -> &'a Card {
+        match highest.suit != new.suit {
+            true => {
+                if new.suit == tjall {
+                    return new;
+                }
+                return highest;
+            }
+            false => {
+                assert!(highest.value != new.value);
+                if highest.value > new.value {
+                    return highest;
+                } else {
+                    return new;
+                }
+            }
         }
     }
 }
@@ -107,12 +177,10 @@ pub async fn get_game<'a>(
 ) -> Result<Json<Game>, &'a str> {
     let room = room_repo
         .get_room_by_id(room_id)
-        .await
-        .ok_or("Room not found!")?;
+        .await?;
     let game = game_repo
         .get_game_from_room(room.id)
-        .await
-        .ok_or("Game not found!")?;
+        .await?;
     Ok(Json(game.clone()))
 }
 // create(start) game
@@ -134,9 +202,7 @@ pub async fn create_game(
     // get room
     let room = room_repo
         .get_room_by_id(room_id)
-        .await
-        .ok_or("Room not found!")?;
-
+        .await?;
     let authorized = (user.role == Role::Admin) | (logged_in_user_id != room.host_id);
     if !authorized {
         return Err("Only the host can start the game!");
@@ -144,13 +210,14 @@ pub async fn create_game(
     if room.players.len() < 3 {
         return Err("Not enough players in room to start game! You need at least 3 players.");
     }
-    if game_repo.get_game_from_room(room.id).await.is_some() {
-        return Err("Game already started!");
+    if let Ok(game) = game_repo.get_game_from_room(room.id).await {
+        if game.is_in_progress() {
+            return Err("Game already started!");
+        }
     }
     let game = game_repo.create_game(room).await?;
     Ok(Json(game.clone()))
 }
-
 #[put("/rooms/<room_id>/game", data = "<card>")]
 pub async fn play_card(
     room_id: RoomId,
@@ -163,63 +230,62 @@ pub async fn play_card(
     let user_id = LoginToken::try_refresh(cookies)?;
     let room = room_repo
         .get_room_by_id(room_id)
-        .await
-        .ok_or("Room not found!")?;
+        .await?;
     let mut game = game_repo
         .get_game_from_room(room_id)
-        .await
-        .ok_or("Game not found!")?;
+        .await?;
     let card = card.into_inner();
-    if let GameState::Playing {
-        ref mut current_round,
-        tjall: _,
-    } = game.game_state
-    {
-        let user = user_repo.get(user_id).await?;
+    let user = user_repo.get(user_id).await?;
+    match game.game_state {
+        GameState::Playing { ref current_round , tjall: _} => { //let player play card
+            // check if it is player's turn (or player is admin)
+            let player_turn = current_round.played_cards.len();
+            let index = if let Role::Admin = user.role {
+                // user is admin; allow them to play card as if they are current player
+                Some(player_turn)
+            } else {
+                // user is not admin; check if they are current player
+                room.players.iter().position(|room_player| {
+                    room_player.as_ref().map_or(false, |p| p.user_id == user_id)
+                })
+            }.ok_or("You are not a player in this room!")?;
+            if index != player_turn {
+                return Err("It is not your turn!");
+            }    
+            game.play_card(card, index)?;
 
-        // check if it is player's turn (or player is admin)
-        let player_turn = current_round.played_cards.len();
-        let index = if let Role::Admin = user.role {
-            // user is admin; allow them to play card as if they are current player
-            Some(player_turn)
-        } else {
-            // user is not admin; check if they are current player
-            room.players.iter().position(|room_player| {
-                room_player.as_ref().map_or(false, |p| p.user_id == user_id)
-            })
         }
-        .ok_or("You are not a player in this room!")?;
-        if index != player_turn {
-            return Err("It is not your turn!");
+        GameState::Starting { ref remaining_deck } => { //let player pick tjall
+            // check if user is starting player (or admin)
+            let index = if let Role::Admin = user.role {
+                // user is admin; allow them to play card as if they are current player
+                Some(0)
+            } else {
+                // user is not admin; check if they are current player
+                room.players.iter().position(|room_player| {
+                    room_player.as_ref().map_or(false, |p| p.user_id == user_id)
+                })
+            }.ok_or("You are not a player in this room!")?;
+            if index != 0 {
+                return Err("You are not the starting player!");
+            }
+            let starting_player = &game.players[0];
+            if !starting_player.current_cards.contains(&card){
+                return Err("You do not have this card!");
+            }
+            // cloning remaining deck here to avoid borrowing as immutable on next line; no need to drain, because next game state does not have remaining deck
+            let mut remaining_deck = remaining_deck.clone();
+            game.pick_tjall_and_start(card.suit)?;
+            let cards_amt = remaining_deck.len() / 4;
+            for player in &mut game.players {
+                player.current_cards.extend(remaining_deck.drain(0..cards_amt));
+            }
         }
-
-        // check if player has card
-        let player = &game.players[index];
-        if !player.current_cards.contains(&card) {
-            return Err("You do not have this card!");
-        }
-        // check if card is valid
-        let round_opening_card = current_round.played_cards[0].card.clone();
-        let valid_cards = Game::valid_cards(player.clone(), round_opening_card.suit);
-        if !valid_cards.contains(&card) {
-            return Err(
-                "You cannot play this card! If you have a card of the same suit, you must play it.",
-            );
-        }
-        // play card
-        let played_card = PlayedCard {
-            player: player.clone(),
-            card: card.clone(),
-        };
-        current_round.played_cards.push(played_card);
-        // remove card from player's hand
-        game.players[index].current_cards.retain(|c| *c != card);
-    } else {
-        return Err("Game is not in progress!");
+        _ => return Err("Game is not in progress!"),
     }
     Ok(Json(game.clone()))
+    
 }
-
 #[delete("/rooms/<room_id>/game", format = "json")]
 pub async fn forfeit(
     room_id: RoomId,
@@ -233,8 +299,7 @@ pub async fn forfeit(
 pub async fn forfeit_player (game_repo: &State<GameRepository>, room_id: RoomId, user_id: UserId) -> Result<Game, &'static str>{
     let mut game = game_repo
         .get_game_from_room(room_id)
-        .await
-        .ok_or("Game not found!")?;
+        .await?;
     // check if game is already finished
     if let GameState::Finished { .. } = game.game_state {
         return Err("Game is already finished!");
@@ -275,12 +340,10 @@ pub async fn get_cards(
     let user_id = LoginToken::try_refresh(cookies)?;
     room_repo
         .get_room_by_id(room_id)
-        .await
-        .ok_or("Room not found!")?;
+        .await?;
     let game = game_repo
         .get_game_from_room(room_id)
-        .await
-        .ok_or("Game not found!")?;
+        .await?;
     user_repo.get(user_id).await?;
 
     let player = game
@@ -290,11 +353,10 @@ pub async fn get_cards(
         .ok_or("You are not a player in this room!")?;
     if let GameState::Playing {
         current_round,
-        tjall: _,
-    } = game.game_state
+        tjall: _, } = game.game_state
     {
-        let round_opening_card = current_round.played_cards[0].card.clone();
-        let valid_cards = Game::valid_cards(player.clone(), round_opening_card.suit);
+        let round_opening_card = &current_round.played_cards[0];
+        let valid_cards = Game::valid_cards(&player, round_opening_card.suit);
         Ok(Json(valid_cards))
     } else {
         Err("Game is not in progress!")
@@ -319,12 +381,10 @@ pub async fn get_cards_admin(
     // user is admin: get cards for player at index
     room_repo
         .get_room_by_id(room_id)
-        .await
-        .ok_or("Room not found!")?;
+        .await?;
     let game = game_repo
         .get_game_from_room(room_id)
-        .await
-        .ok_or("Game not found!")?;
+        .await?;
 
     let player = game.players[player_index].clone();
     if let GameState::Playing {
@@ -332,10 +392,27 @@ pub async fn get_cards_admin(
         tjall: _,
     } = game.game_state
     {
-        let round_opening_card = current_round.played_cards[0].card.clone();
-        let valid_cards = Game::valid_cards(player.clone(), round_opening_card.suit);
+        let round_suit = current_round.played_cards[0].suit;
+        let valid_cards = Game::valid_cards(&player, round_suit);
         Ok(Json(valid_cards))
     } else {
         Err("Game is not in progress!")
     }
 }
+// #[post("/rooms/<room_id>/game/tjall/<suit>")]
+// pub async fn pick_tjall(
+//     room_id: RoomId,
+//     suit: Suit,
+//     game_repo: &State<GameRepository>,
+//     user_repo: &State<UserRepository>
+// ) -> Result<Json<Game>, &'static str>{
+//     // check if game is starting
+//     let game = game_repo.get_game_from_room(room_id).await?;
+//     unimplemented!();
+//     // check if user is admin
+//     // check if suit is valid
+//     // pick tjall
+//     // deal remaining cards
+//     // 
+//     // return game
+// }

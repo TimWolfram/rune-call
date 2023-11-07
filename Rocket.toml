@@ -1,0 +1,6 @@
+[default]
+secret_key = "DzmWFmLyBtD4hv7DwZEnchFV5mLv9LoVsTXuTNaK8vk="
+
+[default.tls]
+certs = "cert.pem"
+key = "key.pem"

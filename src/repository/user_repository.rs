@@ -49,13 +49,10 @@ impl UserRepository {
     pub async fn get(&self, id: UserId) -> Result<User, &'static str> {
         self.users.lock().await.get(&id).cloned().ok_or("User does not exist!")
     }
-    pub async fn get_by_username(&self, username: &str) -> Option<User> {
+    pub async fn get_by_username(&self, username: &str) -> Result<User, &'static str> {
         let usernames = &self.usernames.lock().await;
-        let user_id = usernames.get(username);
-        match user_id {
-            Some(user_id) => return self.users.lock().await.get(&user_id).cloned(),
-            None => None
-        }
+        let user_id = usernames.get(username).ok_or("User does not exist!")?;
+        self.get(*user_id).await
     }
     pub async fn update(&self, user: User) -> bool {
         let users = &mut self.users.lock().await;

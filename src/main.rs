@@ -5,7 +5,7 @@ use repository::*;
 mod controller;
 use controller::*;
 
-use rocket::response::Redirect;
+use rocket::{response::Redirect, http::Status};
 
 #[macro_use]
 extern crate rocket;
@@ -52,8 +52,15 @@ fn rocket() -> _ {
     build
 }
 
-#[get("/secret")]
-fn secret() -> Redirect {
-    let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-    Redirect::to(url) // ;)
+#[get("/secret", data="<form>")]
+fn secret(form: Option<rocket::serde::json::Json<bool> >) -> Result<Redirect, (Status, &'static str)> {
+    if let Some(form) = form {
+        if form.into_inner() {
+            return Ok(Redirect::to("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+        }
+        else {
+            return Err((Status::Forbidden, "You are not worthy!"));
+        }
+    }
+    Err((Status::ExpectationFailed, "What did you expect??"))
 }
