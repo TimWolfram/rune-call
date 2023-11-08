@@ -56,7 +56,7 @@ fn rocket() -> _ {
 fn secret(form: Option<rocket::serde::json::Json<bool> >) -> Result<Redirect, (Status, &'static str)> {
     if let Some(form) = form {
         if form.into_inner() {
-            return Ok(Redirect::to("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+            return Ok(Redirect::to("https://www.youtube.com/watch?v=mh3L091Y7QQ"));
         }
         else {
             return Err((Status::Forbidden, "You are not worthy!"));

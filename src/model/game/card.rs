@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq)]
 pub struct Card {
     pub suit : Suit,

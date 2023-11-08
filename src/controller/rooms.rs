@@ -83,7 +83,7 @@ pub async fn swap_player_seats<'a> (
     room_id: usize,
     room_repo: &State<RoomRepository>,
     cookies: &'a CookieJar<'a>)
--> Result<Json<Room>, &'static str> {
+-> Result<Json<Room>, &'a str> {
     //only host can swap player seats: check if logged in player is host of room
     let host_user_id: usize = LoginToken::try_refresh(cookies)?;
     let mut room: Room = room_repo.get_room_by_id(room_id).await?;
@@ -214,7 +214,6 @@ pub async fn leave_room<'a>(
             return Ok(());
         }
     }
-    
     for i in 0..4 {
         if let Some(p) = &room.players[i] {
             if p.user_id == user_id {

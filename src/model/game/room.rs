@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub type RoomId = usize;
 
 #[derive(Serialize, Deserialize, Clone)]
-
 pub struct Room {
     pub id: RoomId,
     pub name: String,

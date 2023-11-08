@@ -33,7 +33,7 @@ impl LoginToken {
         };
     }
 
-    /// Refresh the JWT and store it in the cookies
+    /// Gets the user ID from the JWT stored in the cookies, and refreshes it
     pub fn try_refresh(cookies: &CookieJar<'_>) -> Result<usize, &'static str> {
         let user_id = LoginToken::from_cookies(cookies)?;
         LoginToken::create(user_id, cookies)?;
