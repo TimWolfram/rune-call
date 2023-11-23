@@ -32,10 +32,10 @@ impl Default for UserRepository {
         }
     }
 }
-type Type<'a> = &'a str;
+type ErrType<'a> = &'a str;
 
 impl UserRepository {
-    pub async fn create_user<'a>(&'a self, username: &str, password: &'a str, role: Role) -> Result<User, Type<'a>> {
+    pub async fn create_user<'a>(&'a self, username: &str, password: &'a str, role: Role) -> Result<User, ErrType<'a>> {
         let username = username.to_string();
         let usernames = &mut self.usernames.lock().await;
         if usernames.contains_key(&username) {
@@ -48,10 +48,10 @@ impl UserRepository {
         usernames.insert(username, id);
         Ok(user)
     }
-    pub async fn get(&self, id: UserId) -> Result<User, Type<'static>> {
+    pub async fn get(&self, id: UserId) -> Result<User, ErrType<'static>> {
         self.users.lock().await.get(&id).cloned().ok_or("User does not exist!")
     }
-    pub async fn get_by_username(&self, username: &str) -> Result<User, Type<'static>> {
+    pub async fn get_by_username(&self, username: &str) -> Result<User, ErrType<'static>> {
         let usernames = &self.usernames.lock().await;
         let user_id = usernames.get(username).ok_or("User does not exist!")?;
         self.get(*user_id).await

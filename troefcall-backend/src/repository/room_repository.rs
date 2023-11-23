@@ -64,26 +64,28 @@ impl RoomRepository {
         let rooms = self.rooms.lock().await;
         rooms.get(&room_id).cloned().ok_or("Game not found!")
     }
-    pub async fn create_room(&self, host_user: &mut User, name: String, mut password: String) -> Result<Room, &'static str> {
+    pub async fn create_room(&self, host_user: &mut User, name: String, password: String) -> Result<Room, &'static str> {
         if host_user.current_room.is_some() {
             return Err("User is already in a room! Leave the room before creating a new one!");
         }
-        // check if name is valid
-        if name.len() < 3 {
+        if name.len() < 3 { // check if name is valid
             return Err("Room name must be at least 3 characters long!");
         }
         let mut hosts = self.hosts.lock().await;
-        // check if user is already hosting a room
-        if hosts.contains_key(&host_user.id) {
+        if hosts.contains_key(&host_user.id) { // check if user is already hosting a room
             return Err("User is already hosting a room!");
         }
         // create room
         let room_id = self.room_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        if password.len() > 0 { 
-            //only hash password if it's not empty; need to be able to see if room is public clearly
-            password = password::hash_password(password.as_str())?;    
-        }
-        let new_room = Room::new(room_id, name.to_string(), password.to_string(), host_user);
+        let pwd_hash = {
+            if password.len() > 0 { //only hash password if it's not empty; need to be able to see if room is public clearly
+                password::hash_password(password.as_str())?
+            }
+            else { //if password is empty, don't hash it; front end will be able to check if password is empty
+                "".to_string()
+            }
+        };
+        let new_room = Room::new(room_id, name.to_string(), pwd_hash, host_user);
         
         // add room to repository
         let mut rooms = self.rooms.lock().await;

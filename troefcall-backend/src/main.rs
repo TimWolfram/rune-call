@@ -52,8 +52,10 @@ fn rocket() -> _ {
     build
 }
 
+type ErrorType = (Status, &'static str);
+
 #[get("/secret", data="<form>")]
-fn secret(form: Option<rocket::serde::json::Json<bool> >) -> Result<Redirect, (Status, &'static str)> {
+fn secret(form: Option<rocket::serde::json::Json<bool> >) -> Result<Redirect, ErrorType> {
     if let Some(form) = form {
         if form.into_inner() {
             return Ok(Redirect::to("https://www.youtube.com/watch?v=mh3L091Y7QQ"));
