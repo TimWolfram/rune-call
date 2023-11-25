@@ -33,6 +33,7 @@ impl Default for UserRepository {
     }
 }
 type ErrType<'a> = &'a str;
+type EndpointResult<'a, T> = Result<T, ErrType<'a>>;
 
 impl UserRepository {
     pub async fn create_user<'a>(&'a self, username: &str, password: &'a str, role: Role) -> Result<User, ErrType<'a>> {

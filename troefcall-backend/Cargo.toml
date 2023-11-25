@@ -15,4 +15,5 @@ rand = "0.8.5"
 
 [dependencies.rocket]
 version = "0.5.0-rc.1"
-features = ["json", "secrets", "tls"]
+# features = ["json", "secrets", "tls"]
+features = ["json", "secrets"]

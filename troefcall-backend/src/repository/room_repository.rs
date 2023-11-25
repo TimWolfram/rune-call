@@ -103,6 +103,13 @@ impl RoomRepository {
             false
         }
     }
+    
+    /// This function transfers the host of a room from one user to another.
+    /// The user with the given `from_user_id` is removed as a host of the room,
+    /// and the user with the given `to_user_id` is added as a host of the room.
+    /// Returns `true` if the transfer was successful, or `false` if the
+    /// transfer failed because the user with the given `from_user_id` was not
+    /// a host of the room. 
     pub async fn transfer_host(&self, from_user_id: UserId, to_user_id: UserId) -> bool {
         let mut hosts = self.hosts.lock().await;
         let room_id = hosts.get(&from_user_id).cloned();

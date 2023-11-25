@@ -1,11 +1,8 @@
 <template>
   <v-card
-    v-click-outside="onClickOutside"
-    :color="active ? 'primary' : undefined"
-    :dark="active"
-    class="flex-lg-grow-1 ma-2"
+    class="flex-lg d-flex justify-content-between"
     rounded="xl">
-    <v-card-title>{{ room.name }} <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon></v-card-title>
+    <v-card-title>{{ getRoomDisplayName(room.name) }} <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon></v-card-title>
     <v-card-text>
       Host: {{ getHostName(room.host_id) }}
       <br/>
@@ -32,7 +29,15 @@ export default {
     getHostName(hostId) {
       const host = this.room.players.find(player => player && player.user_id === hostId);
       return host ? host.name : 'Unknown';
-    }
+    },
+    getRoomDisplayName(roomName) {
+      roomName = roomName ? roomName : 'Unnamed room';
+      // limit room name to 20 characters
+      return roomName.length > 20 ? roomName.substring(0, 20) + '...' : roomName;
+    },
+    getActivePlayersCount(players) {
+      return players.filter(player => player && player.user_id !== null).length;
+    },
   }
 }
 </script>

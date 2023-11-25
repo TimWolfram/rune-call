@@ -10,14 +10,15 @@
   </div>
 </template>
 
-<script setup>
+<script>
   import RoomListItem from '@/components/troefcall/RoomListItem.vue';
-  import { ref, onMounted } from 'vue';
-  import { HOST } from '../constants';
-
-  let rooms = ref([]); // reactive
-  onMounted(async () => {
-    const response = await fetch(`${HOST}/rooms`);
-    rooms.value = await response.json();
-  });
+  export default {
+    name: "RoomList",
+    components: {
+      RoomListItem
+    },
+    props: {
+      rooms: Array
+    }
+  }
 </script>

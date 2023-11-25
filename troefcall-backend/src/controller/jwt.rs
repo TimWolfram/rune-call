@@ -11,9 +11,12 @@ use crate::model::login::LoginToken;
 const SECRET: &[u8] = b"pl@y3r53cr3t_is_v3ry_53cr3t_1236549871!";
 const COOKIE_NAME: &str = "login_user_token";
 
+type UserReturn<'a> = Result<usize, &'a str>;
+type EmptyReturn<'a> = Result<(), &'a str>;
+
 impl LoginToken {
     /// Create a new JWT and store it in the cookies
-    pub fn create(user_id: usize, cookies: &CookieJar<'_>) -> Result<(), &'static str> {
+    pub fn create(user_id: usize, cookies: &CookieJar<'_>) -> UserReturn<'static> {
         let claims = LoginToken {
             user_id,
             exp: get_current_timestamp() + 
@@ -27,21 +30,21 @@ impl LoginToken {
             Ok(token) => {
                 LoginToken::remove_cookie(cookies);
                 cookies.add_private(Cookie::new(COOKIE_NAME, token.to_string()));
-                Ok(())
+                Ok(user_id)
             },
             Err(_) => Err("Error encoding token!"),
         };
     }
 
     /// Gets the user ID from the JWT stored in the cookies, and refreshes it
-    pub fn try_refresh(cookies: &CookieJar<'_>) -> Result<usize, &'static str> {
+    pub fn try_refresh(cookies: &CookieJar<'_>) -> UserReturn<'static> {
         let user_id = LoginToken::from_cookies(cookies)?;
         LoginToken::create(user_id, cookies)?;
         return Ok(user_id);
     }
 
-    /// Get the user_id from the JWT stored in the cookies
-    pub fn from_cookies(cookies: &CookieJar<'_>) -> Result<usize, &'static str> {
+    /// Get the user ID from the JWT stored in the cookies
+    pub fn from_cookies(cookies: &CookieJar<'_>) -> UserReturn<'static> {
         let jwt = cookies.get_private(COOKIE_NAME);
         if let Some(cookie) = jwt {
             let jwt: &str = &cookie.value();
@@ -58,6 +61,7 @@ impl LoginToken {
         }
     }
     
+    /// Remove the JWT from the cookies, effectively logging the user out
     pub fn remove_cookie(cookies: &CookieJar<'_>) {
         cookies.remove_private(Cookie::named(COOKIE_NAME));
     }

@@ -5,7 +5,7 @@ pub type UserId = usize;
 pub struct User {
     pub id: UserId,
     pub username: String,
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing)] // don't send password hash to client
     pub password_hash: String,
     pub nickname: String,
     pub role: Role,

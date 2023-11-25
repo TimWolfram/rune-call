@@ -5,6 +5,8 @@ use repository::*;
 mod controller;
 use controller::*;
 
+mod cors;
+
 use rocket::{response::Redirect, http::Status};
 
 #[macro_use]
@@ -48,7 +50,9 @@ fn rocket() -> _ {
         //add state: using in-memory repositories instead of databases
         .manage(UserRepository::default())
         .manage(RoomRepository::default())
-        .manage(GameRepository::default());
+        .manage(GameRepository::default())
+        // add cors fairing
+        .attach(cors::CORS);
     build
 }
 

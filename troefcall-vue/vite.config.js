@@ -7,6 +7,8 @@ import ViteFonts from 'unplugin-fonts/vite'
 import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
 
+import fs from 'fs'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -44,7 +46,24 @@ export default defineConfig({
       '.vue',
     ],
   },
+  // devServer: {
+  //   disableHostCheck: true,
+  //   port: '8081',
+  //   https: {
+  //       key: fs.readFileSync('./certs/key.pem'),
+  //       cert: fs.readFileSync('./certs/cert.pem'),
+  //   },
+  //   hotOnly: false,
+  //   }, 
   server: {
     port: 3000,
+    proxy: {
+      '/api': {
+        target: 'https://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        pathRewrite: { '^/api': '' },
+      },
+    },
   },
 })
