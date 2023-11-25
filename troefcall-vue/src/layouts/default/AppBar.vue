@@ -33,28 +33,33 @@
   let displayName = ref('');
 
   onMounted(() => {
-
+    lightMode.value = getLightmodeFromCookies();
+    setTheme(lightMode.value);
     displayName.value = Cookies.get('displayName') || '';
   });
 
 
   const theme = useTheme()
 
-  function toggleTheme () {
-    let currentThemeName = theme.global.name.value;
-    console.log('Current theme: ' + currentThemeName);
-    Cookies.set('lightMode', currentlyLightMode);
-    setLightMode(currentlyLightMode);
-  }
-  function setCurrentLightMode(light) {
+  function getLightmodeFromCookies() {
     const LIGHT_MODE_COOKIE = Cookies.get('lightMode');
-    const LIGHT_MODE_ON = LIGHT_MODE_COOKIE === 'light';
-    lightMode.value = LIGHT_MODE_ON;
-    console.log('Light mode cookie: ' + LIGHT_MODE_COOKIE +  (LIGHT_MODE_ON ? ' (light)' : ' (dark)'));
-    setLightMode(LIGHT_MODE_ON);
-    const newLocal = light ? 'light' : 'dark';
-    console.log('Setting theme to: ' + newLocal);
-    theme.global.name.value = newLocal;
+    const LIGHT_MODE_ON = LIGHT_MODE_COOKIE === 'true';
+    console.log('Current light mode cookie: ' + LIGHT_MODE_COOKIE +  (LIGHT_MODE_ON ? ' (light)' : ' (dark)'));
+    return LIGHT_MODE_ON;
   }
+  
+  function toggleTheme() {
+    console.log('Toggled theme: ' + lightMode.value);
+    setTheme(lightMode.value);
+  }
+
+  function setTheme (lightMode) {
+    console.log('Setting theme to ' + (lightMode ? 'light' : 'dark'));
+    let currentThemeName = lightMode ? 'light' : 'dark';
+    console.log('Current theme: ' + currentThemeName);
+    Cookies.set('lightMode', lightMode);
+    theme.global.name.value = currentThemeName;
+  }
+
 
 </script>
