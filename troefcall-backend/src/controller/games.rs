@@ -171,7 +171,7 @@ impl Card {
 }
 
 //get game by id (join game -- requires room code)
-#[get("/rooms/<room_id>/game")]
+#[get("/<room_id>/game")]
 pub async fn get_game<'a>(
     room_id: usize,
     room_repo: &'a State<RoomRepository>,
@@ -186,7 +186,7 @@ pub async fn get_game<'a>(
     Ok(Json(game.clone()))
 }
 // create(start) game
-#[post("/rooms/<room_id>/game")]
+#[post("/<room_id>/game")]
 pub async fn create_game(
     room_id: usize,
     room_repo: &State<RoomRepository>,
@@ -220,7 +220,7 @@ pub async fn create_game(
     let game = game_repo.create_game(room).await?;
     Ok(Json(game.clone()))
 }
-#[put("/rooms/<room_id>/game", data = "<card>")]
+#[put("/<room_id>/game", data = "<card>")]
 pub async fn play_card(
     room_id: RoomId,
     room_repo: &State<RoomRepository>,
@@ -288,7 +288,7 @@ pub async fn play_card(
     Ok(Json(game.clone()))
     
 }
-#[delete("/rooms/<room_id>/game", format = "json")]
+#[delete("/<room_id>/game", format = "json")]
 pub async fn forfeit(
     room_id: RoomId,
     game_repo: &State<GameRepository>,
@@ -331,7 +331,7 @@ pub async fn forfeit_player (game_repo: &State<GameRepository>, room_id: RoomId,
     game_repo.update_game(room_id, game.clone()).await;
     Ok(game)
 }
-#[get("/rooms/<room_id>/game/cards")]
+#[get("/<room_id>/game/cards")]
 pub async fn get_cards(
     room_id: RoomId,
     room_repo: &State<RoomRepository>,
@@ -365,7 +365,7 @@ pub async fn get_cards(
     }
 }
 
-#[get("/rooms/<room_id>/game/cards/<player_index>")]
+#[get("/<room_id>/game/cards/<player_index>")]
 pub async fn get_cards_admin(
     room_id: RoomId,
     room_repo: &State<RoomRepository>,
@@ -401,7 +401,7 @@ pub async fn get_cards_admin(
         Err("Game is not in progress!")
     }
 }
-// #[post("/rooms/<room_id>/game/tjall/<suit>")]
+// #[post("/<room_id>/game/tjall/<suit>")]
 // pub async fn pick_tjall(
 //     room_id: RoomId,
 //     suit: Suit,

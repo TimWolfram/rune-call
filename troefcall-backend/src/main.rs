@@ -17,37 +17,38 @@ extern crate rocket;
 fn rocket() -> _ {
     let build = rocket::build()
         //mount endpoints
-        .mount(
-            "/",
-            routes![
-                login::login,
-                login::logout,
-                login::register,
-                login::delete_user,
-                
-                rooms::get_rooms_paged,
-                rooms::get_rooms_public_paged,
-                rooms::get_room,
-                rooms::create_room,
-                rooms::delete_room,
+        .mount("/login", routes![
+            login::login, 
+            login::logout, 
+            login::register, 
+            login::delete_user])
+        .mount("/rooms", routes![
+            //rooms
+            rooms::get_rooms_paged,
+            rooms::get_rooms_public_paged,
 
-                rooms::join_room,
-                rooms::leave_room,
-                rooms::swap_player_seats,
+            rooms::get_room,
+            rooms::create_room,
+            rooms::delete_room,
+            rooms::join_room,
+            rooms::leave_room,
+            rooms::swap_player_seats,
 
-                games::get_game,
-                games::create_game,
+            //games
+            games::get_game,
+            games::create_game,
 
-                games::get_cards,
-                games::get_cards_admin,
-                games::play_card,
+            games::get_cards,
+            games::get_cards_admin,
+            games::play_card,
 
-                games::forfeit,
-                // games::get_games, //games history - NYI
-                secret,
-            ],
-        )
+            games::forfeit,
+        ])
+        .mount("/", routes![                
+            secret,
+        ])
         //add state: using in-memory repositories instead of databases
+        .manage(UserRepository::test_repo())
         .manage(UserRepository::default())
         .manage(RoomRepository::default())
         .manage(GameRepository::default())

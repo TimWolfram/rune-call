@@ -11,6 +11,7 @@ pub struct Room {
     pub password: String,
     pub players: [Option<Player>;4],
     pub host_id: usize,
+    pub game_in_progress: bool,
 }
 
 impl Room {
@@ -25,6 +26,7 @@ impl Room {
                     None,
                     None,
                     None],
+            game_in_progress: false,
         }
     }
 }

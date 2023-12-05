@@ -20,30 +20,37 @@ impl Room {
         self.players[index] = Some(player.clone());
         return Ok(())
     }
+
     pub fn swap_player_seats(&mut self, player1_index: usize, player2_index: usize) {
         self.players.swap(player1_index, player2_index);
     }
 } 
-#[get("/rooms/page/<page>", format = "json", rank = 1)]
+
+#[get("/page/<page>", format = "json", rank = 1)] //without rank = 1 the compiler complains about ambiguous routes between this (GET /rooms/page/<page>) and game (GET /rooms/<room_id>/game).. not sure why (bug in rocket crate?)
 pub async fn get_rooms_paged(room_repo: &State<RoomRepository>, page: usize) -> Json<Vec<Room>> {
     const PAGE_SIZE: usize = 10;
     let start = page * PAGE_SIZE;
     Json(room_repo.get_rooms_paged(start, PAGE_SIZE).await)
 }
-#[get("/rooms/public/page/<page>", format = "json", rank = 2)]
-pub async fn get_rooms_public_paged(room_repo: &State<RoomRepository>, page: usize) -> Json<Vec<Room>> {
+
+#[get("/page/<page>?public=true", format = "json")]
+pub async fn get_rooms_public_paged(room_repo: &State<RoomRepository>, page: usize) 
+-> Json<Vec<Room>> {
     const PAGE_SIZE: usize = 10;
     let start = page * PAGE_SIZE;
     Json(room_repo.get_rooms_public_paged(start, PAGE_SIZE).await)
 }
-#[get("/rooms/<id>", format = "json")]
-pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) -> Option<Json<Room>> {
+
+#[get("/<id>", format = "json")]
+pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) 
+-> Option<Json<Room>> {
     if let Ok(room) = room_repo.get_room_by_id(id).await {
         return Some(Json(room.clone()));
     }
     None
 }
-#[post("/rooms", format = "json", data = "<create_room_form>")]
+
+#[post("/", data = "<create_room_form>", format = "json")]
 pub async fn create_room(
     create_room_form: Json<CreateRoomForm>,
     room_repo: &State<RoomRepository>,
@@ -79,7 +86,8 @@ pub async fn create_room(
         }
     }
 }
-#[put("/rooms/<room_id>/host/players", format = "json", data = "<swap>")]
+
+#[put("/<room_id>/host/players", data = "<swap>", format = "json")]
 pub async fn swap_player_seats<'a> (
     swap: Json<(usize, usize)>,
     room_id: usize,
@@ -95,16 +103,16 @@ pub async fn swap_player_seats<'a> (
     Ok(Json(room.clone()))
 }
 
-#[delete("/rooms/<room_id>", format = "json")]
+#[delete("/<room_id>", format = "json")]
 pub async fn delete_room<'a>(
     room_id: usize,
     room_repo: &State<RoomRepository>,
     user_repo: &State<UserRepository>,
     cookies: &CookieJar<'a>) 
--> (Status, Error<'a>){
-    //get player cookies first; if cookie does not exist, we don't need to lock the mutex
+-> (Status, Error<'a>) {
     let user_token = LoginToken::try_refresh(cookies);
     if let Err(reason) = user_token {
+        //no need to lock mutex if user is not logged in
         return (Status::Unauthorized, reason);
     }
     let user_id = user_token.unwrap();
@@ -132,7 +140,8 @@ pub async fn delete_room<'a>(
     user_repo.update(host).await;
     (Status::Ok, "Succesfully deleted room!")
 }
-#[post("/rooms/<room_id>/players/<player_index>", format = "json", data = "<player>")]
+
+#[post("/<room_id>/players/<player_index>", data = "<player>", format = "json")]
 pub async fn join_room<'a>(
     room_id: usize,
     user_repo: &State<UserRepository>,
@@ -158,7 +167,8 @@ pub async fn join_room<'a>(
     room.add_player(player, player_index)?;
     Ok(Json(room.clone()))
 }
-// #[delete("/rooms/<room_id>/players/<player_id>", format = "json")]
+
+// #[delete("/<room_id>/players/<player_id>", format = "json")]
 // pub async fn kick_player<'a>(
 //     room_id: usize,
 //     user_id: usize,
@@ -175,7 +185,8 @@ pub async fn join_room<'a>(
 //     leave_room(room_id, user_repo, room_repo, game_repo, cookies).await?;
 //     Err("User is not in room!")
 // }
-#[delete("/rooms/<room_id>/players", format = "json")]
+
+#[delete("/<room_id>/players", format = "json")]
 pub async fn leave_room<'a>(
     room_id: usize,
     user_repo: &State<UserRepository>,

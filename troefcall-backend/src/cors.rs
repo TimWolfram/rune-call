@@ -1,3 +1,6 @@
+// FROM: https://stackoverflow.com/a/69342225
+// needed for CORS, without this the browser will block the request
+
 use rocket::http::Header;
 use rocket::{Request, Response};
 use rocket::fairing::{Fairing, Info, Kind};

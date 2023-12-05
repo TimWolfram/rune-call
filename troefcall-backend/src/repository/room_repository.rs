@@ -24,8 +24,15 @@ impl Default for RoomRepository {
         }
     }
 }
+impl RoomRepository{
+    fn create_test_rooms(user_repo: &mut UserRepository){
+        
+    }
+}
 
 use crate::model::login::{UserId, User};
+
+use super::UserRepository;
 
 impl RoomRepository {
     // pub async fn get_rooms(&self) -> Vec<Room> {
@@ -34,6 +41,7 @@ impl RoomRepository {
     pub async fn get_rooms_paged(&self, start: usize, count: usize) -> Vec<Room> {
         let rooms = self.rooms.lock().await;
         rooms.values()
+            .filter(|room| room.game_in_progress == false)
             .skip(start)
             .take(count)
             .cloned()

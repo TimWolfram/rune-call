@@ -13,21 +13,86 @@ impl Default for UserRepository {
     fn default() -> Self {
         //create default admin user: otherwise, we cannot create any other admins
         let admin_name = "admin".to_string();
-        let default_admin = User {
+        UserRepository {
+            users: Mutex::new (
+                HashMap::from (
+                    [(0, User {
                         id: 0, 
                         username: "admin".to_string(),
                         password_hash: password::hash_password("adminpw!").unwrap(),
                         nickname: "👍Admin👍".to_string(),
                         role: Role::Admin,
                         current_room: None,
-                    };
-        UserRepository {
-            users: Mutex::new (
-                HashMap::from (
-                    [(0, default_admin)]
+                    })]
                 )
             ),
             usernames: Mutex::new(HashMap::from([(admin_name, 0)])),
+            user_count: AtomicUsize::new(1),
+        }
+    }
+}
+impl UserRepository {
+    pub fn test_repo() -> Self {
+        UserRepository {
+            users: Mutex::new(HashMap::from([
+                (0, User {
+                        id: 0, 
+                        username: "admin".to_string(),
+                        password_hash: password::hash_password("adminpw!").unwrap(),
+                        nickname: "👍Admin👍".to_string(),
+                        role: Role::Admin,
+                        current_room: None,
+                    }),
+                (1, User {
+                        id: 1, 
+                        username: "test_user".to_string(),
+                        password_hash: password::hash_password("userpw!").unwrap(),
+                        nickname: "User".to_string(),
+                        role: Role::Player,
+                        current_room: None,
+                    }),
+                (2, User {
+                        id: 2, 
+                        username: "test_user2".to_string(),
+                        password_hash: password::hash_password("user2pw!").unwrap(),
+                        nickname: "test_User2".to_string(),
+                        role: Role::Player,
+                        current_room: None,
+                    }),
+                (3, User {
+                        id: 3, 
+                        username: "test_user3".to_string(),
+                        password_hash: password::hash_password("user3pw!").unwrap(),
+                        nickname: "User3".to_string(),
+                        role: Role::Player,
+                        current_room: None,
+                    }),
+                (4, User {
+                        id: 4, 
+                        username: "test_user4".to_string(),
+                        password_hash: password::hash_password("user4pw!").unwrap(),
+                        nickname: "👍User4👍".to_string(),
+                        role: Role::Player,
+                        current_room: None,
+                    }),
+                (5, User {
+                        id: 5, 
+                        username: "test_user5".to_string(),
+                        password_hash: password::hash_password("user5pw!").unwrap(),
+                        nickname: "👍User5👍".to_string(),
+                        role: Role::Player,
+                        current_room: None,
+                    }),
+                (6, User {
+                        id: 6, 
+                        username: "test_user6".to_string(),
+                        password_hash: password::hash_password("user6pw!").unwrap(),
+                        nickname: "👍User6👍".to_string(),
+                        role: Role::Player,
+                        current_room: None,
+                    }),
+            ])),
+            usernames: Mutex::new(HashMap::new()),
             user_count: AtomicUsize::new(1),
         }
     }

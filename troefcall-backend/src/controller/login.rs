@@ -9,13 +9,12 @@ type Error<'a> = &'a str;
 type ObjectReturn<'a, T> = Result<Json<T>, Error<'a>>;
 type EmptyReturn<'a> = Result<(), Error<'a>>;
 
-#[get("/login", data="<form>", format="json")]
+#[get("/", data="<form>", format="json")]
 pub async fn login<'a>(user_repo: &State<UserRepository>,
     form: Option<Json<LoginForm<'a>>>,
     cookies: &'a CookieJar<'a>)
 -> ObjectReturn<'a, User> {
     if form.is_none() {
-        LoginToken::try_refresh(cookies)?;
         return Err("No form provided!");
     }
     let form = form.unwrap();
@@ -25,14 +24,14 @@ pub async fn login<'a>(user_repo: &State<UserRepository>,
     Ok(Json(user))
 }
 
-#[delete("/login")]
+#[delete("/")]
 pub async fn logout(cookies: &CookieJar<'_>) -> EmptyReturn<'static> {
     LoginToken::from_cookies(cookies)?; // return error if not logged in
     LoginToken::remove_cookie(cookies); 
     Ok(())
 }
 
-#[post("/login", data="<form>", format="json")]
+#[post("/", data="<form>", format="json")]
 pub async fn register<'a>(user_repo: &'a State<UserRepository>,
     form: Json<LoginForm<'a>>,
     cookies: &CookieJar<'a>)
@@ -67,7 +66,7 @@ pub async fn register<'a>(user_repo: &'a State<UserRepository>,
     Ok(Json(user))
 }
 
-#[delete("/login/<user_id>", format="json")]
+#[delete("/<user_id>", format="json")]
 pub async fn delete_user<'a>(user_id: usize,
     user_repo: &'a State<UserRepository>,
     cookies: &CookieJar<'a>)
