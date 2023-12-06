@@ -16,7 +16,7 @@
   </v-app-bar>
   
   <!-- Settings drawer -->
-  <v-navigation-drawer v-model="settingsDrawer" absolute temporary right>
+  <v-navigation-drawer v-model="settingsDrawer" location="right" temporary>
     <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme"/>
     <v-text-field v-model="displayName" label="Display Name" @update:model-value="changeDisplayName"/>
   </v-navigation-drawer>
@@ -45,9 +45,8 @@
   const theme = useTheme()
 
   function getLightmodeFromCookies() {
-    const LIGHT_MODE_COOKIE = Cookies.get('lightMode');
-    const LIGHT_MODE_ON = LIGHT_MODE_COOKIE === 'true';
-    console.log('Current light mode cookie: ' + LIGHT_MODE_COOKIE +  (LIGHT_MODE_ON ? ' (light)' : ' (dark)'));
+    const LIGHT_MODE_ON = Cookies.get(lightModeCookie) === 'true';
+    console.log('Current light mode cookie: ' +  (LIGHT_MODE_ON ? ' (light)' : ' (dark)'));
     lightMode.value = LIGHT_MODE_ON;
   }
   
@@ -58,7 +57,7 @@
 
   function applyTheme () {
     console.log('Setting theme to ' + (lightMode.value ? 'light' : 'dark'));
-    Cookies.set('lightMode', lightMode.value);
+    Cookies.set(lightModeCookie, lightMode.value);
     let currentThemeName = lightMode.value ? 'light' : 'dark';
     console.log('Current theme: ' + currentThemeName);
     theme.global.name.value = currentThemeName;
