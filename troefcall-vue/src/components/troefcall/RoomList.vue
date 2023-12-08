@@ -6,7 +6,7 @@
       <router-link to="/rooms/create">Create a new room</router-link>
     </div>
 
-    <RoomListItem v-for="room in rooms" :key="room.id" :room="room" @click="active = true"/>
+    <RoomListItem v-for="room in rooms" :key="room.id" :room="room"/>
   </div>
 </template>
 
@@ -19,6 +19,13 @@
     },
     props: {
       rooms: Array
+    },
+    methods: {
+      clickRoom(roomId) {
+        console.log('Room clicked!');
+        // redirect to room screen
+        this.$router.push('/rooms/' + roomId);
+      }
     }
   }
 </script>

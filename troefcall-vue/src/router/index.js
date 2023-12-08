@@ -2,20 +2,20 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-  // {
-  //   path: '/',
-  //   component: () => import('@/layouts/default/Default.vue'),
-  //   children: [
-  //     {
-  //       path: '',
-  //       name: 'Home',
-  //       // route level code-splitting
-  //       // this generates a separate chunk (about.[hash].js) for this route
-  //       // which is lazy-loaded when the route is visited.
-  //       component: () => import(/* webpackChunkName: "home" */ '@/views/Home.vue'),
-  //     },
-  //   ],
-  // },
+  {
+    path: '/',
+    component: () => import('@/layouts/default/Default.vue'),
+    children: [
+      {
+        path: '',
+        name: 'Home',
+        // route level code-splitting
+        // this generates a separate chunk (about.[hash].js) for this route
+        // which is lazy-loaded when the route is visited.
+        component: () => import(/* webpackChunkName: "home" */ '@/views/Home.vue'),
+      },
+    ],
+  },
   {
     path: '/',
     component: () => import('@/layouts/default/Default.vue'),
@@ -24,6 +24,17 @@ const routes = [
         path: '/rooms',
         name: 'Rooms',
         component: () => import('@/views/Rooms.vue'),
+      },
+    ],
+  },
+  {
+    path: '/',
+    component: () => import('@/layouts/default/Default.vue'),
+    children: [
+      {
+        path: '/rooms/:id',
+        name: 'Room',
+        component: () => import('@/components/troefcall/RoomItem.vue'),
       },
     ],
   },

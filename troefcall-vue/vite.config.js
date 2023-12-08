@@ -57,13 +57,13 @@ export default defineConfig({
   //   }, 
   server: {
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'https://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-        pathRewrite: { '^/api': '' },
-      },
-    },
+    // proxy: {
+    //   '/api': {
+    //     target: 'https://localhost:8000',
+    //     changeOrigin: true,
+    //     secure: false,
+    //     pathRewrite: { '^/api': '' },
+    //   },
+    // },
   },
 })

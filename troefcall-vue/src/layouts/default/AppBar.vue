@@ -17,7 +17,7 @@
   
   <!-- Settings drawer -->
   <v-navigation-drawer v-model="settingsDrawer" location="right" temporary>
-    <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme"/>
+    <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme" class="ml-3"/>
     <v-text-field v-model="displayName" label="Display Name" @update:model-value="changeDisplayName"/>
   </v-navigation-drawer>
 </template>

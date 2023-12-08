@@ -15,7 +15,10 @@ pub async fn login<'a>(user_repo: &State<UserRepository>,
     cookies: &'a CookieJar<'a>)
 -> ObjectReturn<'a, User> {
     if form.is_none() {
-        return Err("No form provided!");
+        //if no form, check if user is logged in
+        let user_id = LoginToken::from_cookies(cookies)?;
+        let user = user_repo.get(user_id).await?;
+        return Ok(Json(user));
     }
     let form = form.unwrap();
     let user = user_repo.get_by_username(form.username).await?;

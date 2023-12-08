@@ -31,71 +31,139 @@ impl Default for UserRepository {
         }
     }
 }
-impl UserRepository {
+
+impl UserRepository{
     pub fn test_repo() -> Self {
         UserRepository {
             users: Mutex::new(HashMap::from([
                 (0, User {
-                        id: 0, 
-                        username: "admin".to_string(),
-                        password_hash: password::hash_password("adminpw!").unwrap(),
-                        nickname: "👍Admin👍".to_string(),
-                        role: Role::Admin,
-                        current_room: None,
-                    }),
-                (1, User {
-                        id: 1, 
-                        username: "test_user".to_string(),
-                        password_hash: password::hash_password("userpw!").unwrap(),
-                        nickname: "User".to_string(),
-                        role: Role::Player,
-                        current_room: None,
-                    }),
-                (2, User {
-                        id: 2, 
-                        username: "test_user2".to_string(),
-                        password_hash: password::hash_password("user2pw!").unwrap(),
-                        nickname: "test_User2".to_string(),
-                        role: Role::Player,
-                        current_room: None,
-                    }),
-                (3, User {
-                        id: 3, 
-                        username: "test_user3".to_string(),
-                        password_hash: password::hash_password("user3pw!").unwrap(),
-                        nickname: "User3".to_string(),
-                        role: Role::Player,
-                        current_room: None,
-                    }),
-                (4, User {
-                        id: 4, 
-                        username: "test_user4".to_string(),
-                        password_hash: password::hash_password("user4pw!").unwrap(),
-                        nickname: "👍User4👍".to_string(),
-                        role: Role::Player,
-                        current_room: None,
-                    }),
-                (5, User {
-                        id: 5, 
-                        username: "test_user5".to_string(),
-                        password_hash: password::hash_password("user5pw!").unwrap(),
-                        nickname: "👍User5👍".to_string(),
-                        role: Role::Player,
-                        current_room: None,
-                    }),
-                (6, User {
-                        id: 6, 
-                        username: "test_user6".to_string(),
-                        password_hash: password::hash_password("user6pw!").unwrap(),
-                        nickname: "👍User6👍".to_string(),
-                        role: Role::Player,
-                        current_room: None,
-                    }),
+                    id: 0, 
+                    username: "admin".to_string(),
+                    password_hash: password::hash_password("adminpw!").unwrap(),
+                    nickname: "👍Admin👍".to_string(),
+                    role: Role::Admin,
+                    current_room: None,
+                }),
+                (1, User::new(
+                    1,
+                    "user1".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user1".to_string(),
+                    Role::Admin)
+                ),
+                (2, User::new(
+                    2,
+                    "user2".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user2".to_string(),
+                    Role::Admin)
+                ),
+                (3, User::new(
+                    3,
+                    "user3".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user3".to_string(),
+                    Role::Admin)
+                ),
+                (4, User::new(
+                    4,
+                    "user4".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user4".to_string(),
+                    Role::Admin)
+                ),
+                (5, User::new(
+                    5,
+                    "user5".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user5".to_string(),
+                    Role::Admin)
+                ),
+                (6, User::new(
+                    6,
+                    "user6".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user6".to_string(),
+                    Role::Admin)
+                ),
+                (7, User::new(
+                    7,
+                    "user7".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user7".to_string(),
+                    Role::Admin)
+                ),
+                (8, User::new(
+                    8,
+                    "user8".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user8".to_string(),
+                    Role::Admin)
+                ),
+                (9, User::new(
+                    9,
+                    "user9".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user9".to_string(),
+                    Role::Admin)
+                ),
+                (10, User::new(
+                    10,
+                    "user10".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user10".to_string(),
+                    Role::Admin)
+                ),
+                (11, User::new(
+                    11,
+                    "user11".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user11".to_string(),
+                    Role::Admin)
+                ),
+                (12, User::new(
+                    12,
+                    "user12".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user12".to_string(),
+                    Role::Admin)
+                ),
+                (13, User::new(
+                    13,
+                    "user13".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user13".to_string(),
+                    Role::Admin)
+                ),
+                (14, User::new(
+                    14,
+                    "user14".to_string(),
+                    password::hash_password("userpw!").unwrap(),
+                    "user14".to_string(),
+                    Role::Admin)
+                ),
             ])),
-            usernames: Mutex::new(HashMap::new()),
-            user_count: AtomicUsize::new(1),
+            usernames: Mutex::new(HashMap::from([
+                ("admin".to_string(), 0),
+                ("user1".to_string(), 1),
+                ("user2".to_string(), 2),
+                ("user3".to_string(), 3),
+                ("user4".to_string(), 4),
+                ("user5".to_string(), 5),
+                ("user6".to_string(), 6),
+                ("user7".to_string(), 7),
+                ("user8".to_string(), 8),
+                ("user9".to_string(), 9),
+                ("user10".to_string(), 10),
+                ("user11".to_string(), 11),
+                ("user12".to_string(), 12),
+                ("user13".to_string(), 13),
+                ("user14".to_string(), 14),
+            ])),
+            user_count: AtomicUsize::new(15),
         }
     }
+
 }
 type ErrType<'a> = &'a str;
 type EndpointResult<'a, T> = Result<T, ErrType<'a>>;

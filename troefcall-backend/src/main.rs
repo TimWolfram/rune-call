@@ -7,6 +7,8 @@ use controller::*;
 
 mod cors;
 
+mod test;
+
 use rocket::{response::Redirect, http::Status};
 
 #[macro_use]
@@ -44,13 +46,12 @@ fn rocket() -> _ {
 
             games::forfeit,
         ])
-        .mount("/", routes![                
+        .mount("/", routes![
             secret,
         ])
         //add state: using in-memory repositories instead of databases
         .manage(UserRepository::test_repo())
-        .manage(UserRepository::default())
-        .manage(RoomRepository::default())
+        .manage(RoomRepository::test_repo())
         .manage(GameRepository::default())
         // add cors fairing
         .attach(cors::CORS);

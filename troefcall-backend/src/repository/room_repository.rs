@@ -25,12 +25,36 @@ impl Default for RoomRepository {
     }
 }
 impl RoomRepository{
-    fn create_test_rooms(user_repo: &mut UserRepository){
-        
+    pub fn test_repo() -> Self {
+        // let mut users = user_repo.users.lock().await;
+        // let user1 = users.get_mut(&0).unwrap();
+        // let user2 = users.get_mut(&1).unwrap();
+        // let user3 = users.get_mut(&2).unwrap();
+        RoomRepository {
+            rooms: Mutex::new(HashMap::from([
+                (0, Room::new(0, "Room 0".to_string(), "asdf".to_string(), &mut User::new(0, "Admin".to_string(), "".to_string(), "Admin".to_string(), Role::Admin))),
+                (1, Room::new(1, "Room 1".to_string(), "".to_string(), &mut User::new(1, "user1".to_string(), "".to_string(), "user1".to_string(), Role::Admin))),
+                (2, Room::new(2, "Room 2".to_string(), "".to_string(), &mut User::new(2, "user2".to_string(), "".to_string(), "user2".to_string(), Role::Admin))),
+                (3, Room::new(3, "Room 3".to_string(), "".to_string(), &mut User::new(3, "user3".to_string(), "".to_string(), "user3".to_string(), Role::Admin))),
+                (4, Room::new(4, "Room 4".to_string(), "".to_string(), &mut User::new(4, "user4".to_string(), "".to_string(), "user4".to_string(), Role::Admin))),
+                (5, Room::new(5, "Room 5".to_string(), "".to_string(), &mut User::new(5, "user5".to_string(), "".to_string(), "user5".to_string(), Role::Admin))),
+                (6, Room::new(6, "Room 6".to_string(), "".to_string(), &mut User::new(6, "user6".to_string(), "".to_string(), "user6".to_string(), Role::Admin))),
+            ])),
+            room_count: AtomicUsize::new(3),
+            hosts: Mutex::new(HashMap::from([
+                (0, 0),
+                (1, 1),
+                (2, 2),
+                (3, 3),
+                (4, 4),
+                (5, 5),
+                (6, 6),
+            ])),
+        }
     }
 }
 
-use crate::model::login::{UserId, User};
+use crate::model::login::{UserId, User, Role};
 
 use super::UserRepository;
 

@@ -1,7 +1,8 @@
 <template>
   <v-card
-    class="flex-lg d-flex justify-content-between"
-    rounded="xl">
+    class="d-flex justify-content-between"
+    rounded="lg"
+    @click="handleClick(room.id)">
     <v-card-title>{{ getRoomDisplayName(room.name) }} <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon></v-card-title>
     <v-card-text>
       Host: {{ getHostName(room.host_id) }}
@@ -38,6 +39,11 @@ export default {
     getActivePlayersCount(players) {
       return players.filter(player => player && player.user_id !== null).length;
     },
+    handleClick() {
+      console.log('Card clicked!');
+      // redirect to room screen
+      this.$router.push('/rooms/' + this.room.id);
+    }
   }
 }
 </script>
