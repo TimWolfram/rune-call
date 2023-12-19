@@ -1,15 +1,19 @@
 <template>
-  <v-card
-    class="d-flex justify-content-between"
-    rounded="lg"
-    @click="handleClick(room.id)">
-    <v-card-title>{{ getRoomDisplayName(room.name) }} <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon></v-card-title>
-    <v-card-text>
-      Host: {{ getHostName(room.host_id) }}
-      <br/>
-      Players: {{ getActivePlayersCount(room.players) }}/4
-    </v-card-text>
-  </v-card>
+  <v-col>
+    <v-card
+      class="pa-1 ma-1 text-center"
+      height="200"
+      width="200"
+      rounded="lg"
+      @click="handleClick(room.id)">
+      <v-card-title>{{ getRoomDisplayName(room.name) }} <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon></v-card-title>
+      <v-card-text>
+          Host: {{ getHostName(room.host_id) }}
+          <br/>
+          Players: {{ getActivePlayersCount(room.players) }}/4
+        </v-card-text>
+    </v-card>
+  </v-col>
 </template>
 
 <script>

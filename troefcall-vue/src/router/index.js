@@ -14,27 +14,20 @@ const routes = [
         // which is lazy-loaded when the route is visited.
         component: () => import(/* webpackChunkName: "home" */ '@/views/Home.vue'),
       },
-    ],
-  },
-  {
-    path: '/',
-    component: () => import('@/layouts/default/Default.vue'),
-    children: [
       {
         path: '/rooms',
-        name: 'Rooms',
+        name: 'RoomsList',
         component: () => import('@/views/Rooms.vue'),
       },
-    ],
-  },
-  {
-    path: '/',
-    component: () => import('@/layouts/default/Default.vue'),
-    children: [
       {
         path: '/rooms/:id',
         name: 'Room',
         component: () => import('@/components/troefcall/RoomItem.vue'),
+      },
+      {
+        path: '/createroom',
+        name: 'CreateRoom',
+        component: () => import('@/components/troefcall/CreateRoom.vue'),
       },
     ],
   },

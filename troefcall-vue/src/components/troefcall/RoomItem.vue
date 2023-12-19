@@ -1,5 +1,5 @@
 <template>
-    <div v-for="(user, index) in users" :key="index" class="seat">
+    <div v-for="(user, index) in users" :key="index">
         <div v-if="user">
         <!-- Display user information here -->
         <v-card>{{ user.name }}</v-card>

@@ -14,7 +14,7 @@
 <script>
   import { ref, onMounted } from 'vue';
   import RoomList from '@/components/troefcall/RoomList.vue'
-  import HOST from '@/constants'
+  import {get} from '@/requests'
   import axios from 'axios'
 
   export default {
@@ -31,13 +31,13 @@
     },
     methods: {
       async update() {
-        let pageUrl = HOST + '/rooms/page/' + this.page;
         try {
-          let response = await fetch(pageUrl);
-          if (!response.ok) {
+          let pageUrl = 'rooms/page/' + this.page;
+          let response = await get(pageUrl);
+          if (!response.status === 200) {
             throw new Error('Server response was not ok');
           }
-          let newRooms = await response.json();
+          let newRooms = response.data;
           //print rooms to console as json
           console.log("rooms: \n" + JSON.stringify(newRooms));
           this.rooms = newRooms;
