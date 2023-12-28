@@ -17,9 +17,10 @@ extern crate rocket;
 #[launch]
 /// Launches the rocket server
 fn rocket() -> _ {
-    let build = rocket::build()
+    rocket::build()
         //mount endpoints
         .mount("/login", routes![
+            login::testadmin, 
             login::login, 
             login::logout, 
             login::register, 
@@ -54,8 +55,7 @@ fn rocket() -> _ {
         .manage(RoomRepository::test_repo())
         .manage(GameRepository::default())
         // add cors fairing
-        .attach(cors::CORS);
-    build
+        .attach(cors::CORS)
 }
 
 type ErrorType = (Status, &'static str);

@@ -59,6 +59,7 @@
           let loginResponse = await response.data;
           //print rooms to console as json
           console.log(`logged in user: \n${JSON.stringify(loginResponse, null, 2)}`);
+          console.log('cookies from login response: ' + JSON.stringify(response.headers, null, 2));
           this.loginErr = false; // API call was successful
           if (loginResponse.user_id !== null) {
             this.loginUser = loginResponse;

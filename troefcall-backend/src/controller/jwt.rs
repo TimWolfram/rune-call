@@ -6,6 +6,7 @@ use jsonwebtoken::Validation;
 use jsonwebtoken::get_current_timestamp;
 use rocket::http::Cookie;
 use rocket::http::CookieJar;
+use rocket::http::SameSite;
 use crate::model::login::LoginToken;
 
 const SECRET: &[u8] = b"pl@y3r53cr3t_is_v3ry_53cr3t_1236549871!";
@@ -29,7 +30,12 @@ impl LoginToken {
         return match jsonwebtoken::encode(&Header::default(), &claims, encoding_key) {
             Ok(token) => {
                 LoginToken::remove_cookie(cookies);
-                cookies.add_private(Cookie::new(COOKIE_NAME, token.to_string()));
+                let cookie = Cookie::build(COOKIE_NAME, token.to_string())
+                    .same_site(SameSite::None)
+                    // .secure(true)
+                    // .domain("http://localhost:3000")
+                    .finish();
+                cookies.add_private(cookie);
                 Ok(user_id)
             },
             Err(_) => Err("Error encoding token!"),

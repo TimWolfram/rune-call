@@ -9,6 +9,16 @@ type Error<'a> = &'a str;
 type ObjectReturn<'a, T> = Result<Json<T>, Error<'a>>;
 type EmptyReturn<'a> = Result<(), Error<'a>>;
 
+#[get("/testadmin", format="json")]
+pub async fn testadmin<'a>(user_repo: &'a State<UserRepository>,
+    cookies: &'a CookieJar<'a>)
+-> ObjectReturn<'a, User> {
+    // test: login as admin
+    let user = user_repo.get(0).await?;
+    LoginToken::create(user.id, cookies)?;
+    Ok(Json(user))
+}
+
 #[get("/", data="<form>", format="json")]
 pub async fn login<'a>(user_repo: &State<UserRepository>,
     form: Option<Json<LoginForm<'a>>>,
@@ -22,7 +32,10 @@ pub async fn login<'a>(user_repo: &State<UserRepository>,
     }
     let form = form.unwrap();
     let user = user_repo.get_by_username(form.username).await?;
-    password::verify_password(form.password, user.password_hash.as_str())?;
+    match password::verify_password(form.password, user.password_hash.as_str()){
+        Ok(_) => {},
+        Err(_) => return Err("Wrong password!"),
+    }
     LoginToken::create(user.id, cookies)?;
     Ok(Json(user))
 }
