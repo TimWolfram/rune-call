@@ -37,18 +37,18 @@ impl Game {
             Next,
             Random,
         }
+        
         let starting_player = match last_game {
             None => StartingPlayer::Random,
             Some(game) => {
-                if let GameState::Finished { winners, reason: _ } = game.game_state {
-                    // check if starting player won
-                    let last_starting = &game.players[0];
-                    match winners.contains(last_starting) {
-                        true => StartingPlayer::Last,
-                        false => StartingPlayer::Next,
-                    }
-                } else {
+                let GameState::Finished { winners, reason: _ } = game.game_state else {
                     return Err((Status::BadRequest, "Last game is not finished!"));
+                };
+                // check if starting player won
+                let last_starting = &game.players[0];
+                match winners.contains(last_starting) {
+                    true => StartingPlayer::Last,
+                    false => StartingPlayer::Next,
                 }
             }
         };
@@ -111,19 +111,20 @@ impl Game {
     /// Pick a tjall suit aka trump aka "troef".
     /// This starts the game; changing its state from `Starting` to `Playing`.
     pub fn pick_tjall_and_start(&mut self, suit: Suit) -> Result<(), Error<'static>> {
-        if let GameState::Starting { remaining_deck: _ } = &mut self.game_state {
-            self.game_state = GameState::Playing {
-                current_round: Round {
-                    played_cards: Vec::new(),
-                    starting_player_index: 0,
-                    round_winner: None,
-                },
-                tjall: suit,
-            };
-            Ok(())
-        } else {
-            Err((Status::BadRequest, "Game is not starting!"))
-        }
+        let GameState::Starting { remaining_deck: _ } = &mut self.game_state 
+        else {
+            return Err((Status::BadRequest, "Game is not starting!"));
+        };  
+        
+        self.game_state = GameState::Playing {
+            current_round: Round {
+                played_cards: Vec::new(),
+                starting_player_index: 0,
+                round_winner: None,
+            },
+            tjall: suit,
+        };
+        Ok(())
     }
     /// Play a card.
     pub fn play_card(&mut self, card: Card, index: usize) -> Result<(), Error<'static>> {
@@ -132,27 +133,27 @@ impl Game {
         if !player.current_cards.contains(&card) {
             return Err((Status::Unauthorized, "You do not have this card!"));
         }
-        if let GameState::Playing { ref mut current_round, tjall } = self.game_state {
-            let round_opening_card = &current_round.played_cards[0];
-            let valid_cards = Game::valid_cards(player, round_opening_card.suit);
-            if !valid_cards.contains(&card) {
-                return Err((Status::Unauthorized, "You cannot play this card! If you have a card of the same suit, you must play it."));
-            }
-            current_round.played_cards.push(card.clone());
-            // remove card from player's hand
-            self.players[index].current_cards.retain(|c| c.clone() != card);
-            // check if round is finished
-            if current_round.played_cards.len() == 4 {
-                // determine winner
-                let mut winning_card = &current_round.played_cards[0];
-                for played_card in &current_round.played_cards {
-                    winning_card = Card::compare(winning_card, played_card, tjall);
-                }
-            }
-            Ok(())
-        } else {
-            Err((Status::Unauthorized, "Game is not in progress!"))
+        let GameState::Playing { ref mut current_round, tjall } = self.game_state else {
+            return Err((Status::Conflict, "Game is not in progress!"));
+        };
+
+        let round_opening_card = &current_round.played_cards[0];
+        let valid_cards = Game::valid_cards(player, round_opening_card.suit);
+        if !valid_cards.contains(&card) {
+            return Err((Status::BadRequest, "You cannot play this card! If you have a card of the same suit, you must play it."));
         }
+        current_round.played_cards.push(card.clone());
+        // remove card from player's hand
+        self.players[index].current_cards.retain(|c| c.clone() != card);
+        // check if round is finished
+        if current_round.played_cards.len() == 4 {
+            // determine winner
+            let mut winning_card = &current_round.played_cards[0];
+            for played_card in &current_round.played_cards {
+                winning_card = Card::compare(winning_card, played_card, tjall);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -296,7 +297,7 @@ pub async fn play_card<'a>(
                 player.current_cards.extend(remaining_deck.drain(0..cards_amt));
             }
         }
-        _ => return Err((Status::ExpectationFailed, "Game is not in progress!")),
+        _ => return Err((Status::Conflict, "Game is not in progress!")),
     }
     Ok(Json(game.clone()))
     
@@ -317,7 +318,7 @@ pub async fn forfeit_player<'a> (game_repo: &'a State<GameRepository>, room_id: 
         .await?;
     // check if game is already finished
     if let GameState::Finished { .. } = game.game_state {
-        return Err((Status::ExpectationFailed, "Game is already finished!"));
+        return Err((Status::Conflict, "Game is already finished!"));
     }
     // determine winners based on if index is odd or even
     let room_player_index = game
@@ -367,16 +368,12 @@ pub async fn get_cards<'a>(
         .iter()
         .find(|p| p.user_id == user_id)
         .ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
-    if let GameState::Playing {
-        current_round,
-        tjall: _, } = game.game_state
-    {
-        let round_opening_card = &current_round.played_cards[0];
-        let valid_cards = Game::valid_cards(&player, round_opening_card.suit);
-        Ok(Json(valid_cards))
-    } else {
-        Err((Status::BadRequest, "Game is not in progress!"))
-    }
+    let GameState::Playing {current_round, tjall: _, } = game.game_state else {
+        return Err((Status::BadRequest, "Game is not in progress!"));
+    };
+    let round_opening_card = &current_round.played_cards[0];
+    let valid_cards = Game::valid_cards(&player, round_opening_card.suit);
+    Ok(Json(valid_cards))
 }
 
 #[get("/<room_id>/game/cards/<player_index>")]
@@ -403,17 +400,15 @@ pub async fn get_cards_admin<'a> (
         .await?;
 
     let player = game.players[player_index].clone();
-    if let GameState::Playing {
+    let GameState::Playing {
         current_round,
         tjall: _,
-    } = game.game_state
-    {
-        let round_suit = current_round.played_cards[0].suit;
-        let valid_cards = Game::valid_cards(&player, round_suit);
-        Ok(Json(valid_cards))
-    } else {
-        Err((Status::Unauthorized, "Game is not in progress!"))
-    }
+    } = game.game_state else {
+        return Err((Status::Unauthorized, "Game is not in progress!"));
+    };
+    let round_suit = current_round.played_cards[0].suit;
+    let valid_cards = Game::valid_cards(&player, round_suit);
+    Ok(Json(valid_cards))
 }
 // #[post("/<room_id>/game/tjall/<suit>")]
 // pub async fn pick_tjall(

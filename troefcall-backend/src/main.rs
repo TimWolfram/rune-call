@@ -62,13 +62,13 @@ type ErrorType = (Status, &'static str);
 
 #[get("/secret", data="<form>")]
 fn secret(form: Option<rocket::serde::json::Json<bool> >) -> Result<Redirect, ErrorType> {
-    if let Some(form) = form {
-        if form.into_inner() {
-            return Ok(Redirect::to("https://www.youtube.com/watch?v=mh3L091Y7QQ"));
-        }
-        else {
-            return Err((Status::Forbidden, "You are not worthy!"));
-        }
+    let Some(f) = form else {
+        return Err((Status::ExpectationFailed, "What did you expect??"));
+    };
+    if f.into_inner() {
+        return Ok(Redirect::to("https://www.youtube.com/watch?v=mh3L091Y7QQ"));
     }
-    Err((Status::ExpectationFailed, "What did you expect??"))
+    else {
+        return Err((Status::Forbidden, "You are not worthy!"));
+    }
 }

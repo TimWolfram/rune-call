@@ -52,19 +52,18 @@ impl LoginToken {
     /// Get the user ID from the JWT stored in the cookies
     pub fn from_cookies(cookies: &CookieJar<'_>) -> UserReturn<'static> {
         let jwt = cookies.get_private(COOKIE_NAME);
-        if let Some(cookie) = jwt {
-            let jwt: &str = &cookie.value();
-            let decoding_key: &DecodingKey = &DecodingKey::from_secret(SECRET);
-            let validation: &Validation = &Validation::default();
-            let token_data = jsonwebtoken::decode::<LoginToken>(jwt, decoding_key, validation);
-            
-            return match token_data {
-                Ok(token_data) => Ok(token_data.claims.user_id),
-                Err(_) => Err((Status::Unauthorized, "Player not logged in: invalid token!")),
-            };
-        } else {
+        let Some(cookie) = jwt else {
             return Err((Status::Unauthorized, "Player is not logged in!"));
-        }
+        };
+        let jwt: &str = &cookie.value();
+        let decoding_key: &DecodingKey = &DecodingKey::from_secret(SECRET);
+        let validation: &Validation = &Validation::default();
+        let token_data = jsonwebtoken::decode::<LoginToken>(jwt, decoding_key, validation);
+        
+        return match token_data {
+            Ok(token_data) => Ok(token_data.claims.user_id),
+            Err(_) => Err((Status::Unauthorized, "Player not logged in: invalid token!")),
+        };
     }
     
     /// Remove the JWT from the cookies, effectively logging the user out

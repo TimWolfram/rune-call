@@ -132,7 +132,7 @@ pub async fn join_room<'a>(
         }
     }
     if user.current_room.is_some() {
-        return Err((Status::ExpectationFailed, "User is already in a room! Leave the room before joining another one!"));
+        return Err((Status::Conflict, "User is already in a room! Leave the room before joining another one!"));
     }
     user.current_room = Some(room_id);
     let player = Player::from(&user);
@@ -176,7 +176,7 @@ pub async fn leave_room<'a>(
     let game = game_repo.get_game_from_room(room_id).await;
     if let Ok(game) = game {
         if game.is_in_progress() {
-            return Err((Status::ExpectationFailed, "Cannot leave room while game is in progress! Finish or forfeit the game first!"));
+            return Err((Status::Conflict, "Cannot leave room while game is in progress! Finish or forfeit the game first!"));
         }
     }
     

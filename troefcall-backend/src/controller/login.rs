@@ -83,6 +83,7 @@ pub async fn register<'a>(user_repo: &'a State<UserRepository>,
                 return Err((Status::BadRequest, "Admin password must be at least 8 characters long!"));
             }
             let user = user_repo.create_user(username, password, Role::Admin).await?;
+            return Ok(Json(user));
         }
     }
         
