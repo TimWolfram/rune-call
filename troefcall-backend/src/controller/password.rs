@@ -1,13 +1,14 @@
 use bcrypt::{DEFAULT_COST, verify, hash};
-
-pub fn hash_password(password: &str) -> Result<String, &'static str> {
-    hash(password, DEFAULT_COST).or(Err("Error while hashing password!"))
+use rocket::http::Status;
+type Error<'a> = (Status, &'a str);
+pub fn hash_password<'a>(password: &str) -> Result<String, Error<'a>> {
+    hash(password, DEFAULT_COST).or(Err((Status::InternalServerError, "Error while hashing password!")))
 }
 
-pub fn verify_password(password: &str, hashed: &str) -> Result<(), &'static str> {
-    let valid = verify(password, hashed).or(Err("Error while verifying password!"))?;
+pub fn verify_password<'a>(password: &'a str, hashed: &'a str) -> Result<(), Error<'a>> {
+    let valid = verify(password, hashed).or(Err((Status::InternalServerError, "Error while verifying password!")))?;
     if !valid {
-        return Err("Incorrect password!");
+        return Err((Status::Unauthorized, "Incorrect password!"));
     }
     Ok(())
 }

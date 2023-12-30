@@ -6,16 +6,15 @@ use crate::repository::{UserRepository, RoomRepository, GameRepository};
 use rocket::http::{CookieJar, Status};
 use rocket::serde::json::Json;
 use rocket::State;
-type Error<'a> = &'a str;
-type Type<'a> = (Status, &'a str);
+type Error<'a> = (Status, &'a str);
 
 impl Room {
-    pub fn add_player(&mut self, player: Player, index: usize) -> Result<(), &'static str> {
+    pub fn add_player<'a>(&mut self, player: Player, index: usize) -> Result<(), Error<'a>> {
         if index > 3 {
-            return Err("Player index out of bounds!");
+            return Err((Status::InternalServerError, "Player index out of bounds!"));
         }
         if self.players[index].is_some() {
-            return Err("Player slot already taken!");
+            return Err((Status::BadRequest, "Player slot already taken!"));
         }
         self.players[index] = Some(player.clone());
         return Ok(())
@@ -51,12 +50,12 @@ pub async fn get_room(id: usize, room_repo: &State<RoomRepository>)
 }
 
 #[post("/", data = "<create_room_form>", format = "json")]
-pub async fn create_room(
+pub async fn create_room<'a>(
     create_room_form: Json<CreateRoomForm>,
-    room_repo: &State<RoomRepository>,
-    user_repo: &State<UserRepository>,
-    cookies: &CookieJar<'_>) 
--> Result<Json<Room>, Type<'static>> {
+    room_repo: &'a State<RoomRepository>,
+    user_repo: &'a State<UserRepository>,
+    cookies: &'a CookieJar<'_>) 
+-> Result<Json<Room>, Error<'a>> {
     let name = create_room_form.name.clone();
     if name.len() < 3 {
         return Err((Status::BadRequest, "Room name must be at least 3 characters long!"));
@@ -64,40 +63,25 @@ pub async fn create_room(
     let password = create_room_form.password.clone();
     
     //get currently logged in user
-    let login_token = LoginToken::try_refresh(cookies);
-    if let Err(e) = login_token {
-        return Err((Status::Unauthorized, e));
-    }
-    let user_id = login_token.unwrap();
-    let user = user_repo.get(user_id).await;
-    
-    if let Err(e) = user {
-        return Err((Status::Unauthorized, e));
-    }
-    let mut user = user.unwrap();
+    let user_id = LoginToken::try_refresh(cookies)?;
+    let mut user = user_repo.get(user_id).await?;
     //find user
-    let room = room_repo.create_room(&mut user, name, password).await;
-    match room {
-        Err(reason) => Err((Status::BadRequest, reason)),
-        Ok(room) => {
-            //update user
-            user_repo.update(user).await;
-            Ok(Json(room))
-        }
-    }
+    let room = room_repo.create_room(&mut user, name, password).await?;
+    user_repo.update(user).await;
+    Ok(Json(room))
 }
 
 #[put("/<room_id>/host/players", data = "<swap>", format = "json")]
 pub async fn swap_player_seats<'a> (
     swap: Json<(usize, usize)>,
     room_id: usize,
-    room_repo: &State<RoomRepository>,
+    room_repo: &'a State<RoomRepository>,
     cookies: &'a CookieJar<'a>)
 -> Result<Json<Room>, Error<'a>> {
     //only host can swap player seats: check if logged in player is host of room
     let host_user_id: usize = LoginToken::try_refresh(cookies)?;
     let mut room: Room = room_repo.get_room_by_id(room_id).await?;
-    if room.host_id != host_user_id { return Err("Only the host can swap player seats!"); }
+    if room.host_id != host_user_id { return Err((Status::Unauthorized, "Only the host can swap player seats!")); }
     let swap: (usize, usize) = swap.into_inner();
     room.swap_player_seats(swap.0, swap.1);
     Ok(Json(room.clone()))
@@ -106,50 +90,39 @@ pub async fn swap_player_seats<'a> (
 #[delete("/<room_id>", format = "json")]
 pub async fn delete_room<'a>(
     room_id: usize,
-    room_repo: &State<RoomRepository>,
-    user_repo: &State<UserRepository>,
-    cookies: &CookieJar<'a>) 
--> (Status, Error<'a>) {
-    let user_token = LoginToken::try_refresh(cookies);
-    if let Err(reason) = user_token {
-        //no need to lock mutex if user is not logged in
-        return (Status::Unauthorized, reason);
-    }
-    let user_id = user_token.unwrap();
-    let host = user_repo
-            .get(user_id).await;
-    if let Err(e) = host {
-        return (Status::Unauthorized, e);
-    }
-    let room = room_repo.get_room_by_id(room_id).await;
-    if let Err(e) = room {
-        return (Status::NotFound, e);
-    }
-    let room = room.unwrap();
-    let mut host = host.unwrap();
+    room_repo: &'a State<RoomRepository>,
+    user_repo: &'a State<UserRepository>,
+    cookies: &'a CookieJar<'a>) 
+-> Result<(), Error<'a>> {
+    //no need to lock mutex if user is not logged in
+    let user_id = LoginToken::try_refresh(cookies)?;
+    
+    let mut host = user_repo
+            .get(user_id).await?;
+    let room = room_repo.get_room_by_id(room_id).await?;
     let authorized = match host.role {
         Role::Admin => true,
         Role::Player => user_id == host.id
     };
     if !authorized {
-        return (Status::Forbidden, "User must be host or admin to delete this room!");
+        return Err((Status::Forbidden, "User must be host or admin to delete this room!"));
     }
     user_repo.clear_room(&room).await;
     room_repo.delete_room(&room_id).await;
     host.current_room = None;
     user_repo.update(host).await;
-    (Status::Ok, "Succesfully deleted room!")
+    Ok(())
 }
 
 #[post("/<room_id>/players/<player_index>", data = "<player>", format = "json")]
 pub async fn join_room<'a>(
     room_id: usize,
-    user_repo: &State<UserRepository>,
-    room_repo: &State<RoomRepository>,
+    user_repo: &'a State<UserRepository>,
+    room_repo: &'a State<RoomRepository>,
     player_index: usize,
     player: Option<Json<LoginForm<'_>>>,
-    cookies: &CookieJar<'a> ) 
--> Result<Json<Room>, &'a str> {
+    cookies: &'a CookieJar<'a> ) 
+-> Result<Json<Room>, Error<'a>> {
     let user_id = LoginToken::try_refresh(cookies).unwrap();
     let mut user = user_repo.get(user_id).await?;
     if user.role == Role::Admin {
@@ -159,7 +132,7 @@ pub async fn join_room<'a>(
         }
     }
     if user.current_room.is_some() {
-        return Err("User is already in a room! Leave the room before joining another one!");
+        return Err((Status::ExpectationFailed, "User is already in a room! Leave the room before joining another one!"));
     }
     user.current_room = Some(room_id);
     let player = Player::from(&user);
@@ -189,21 +162,21 @@ pub async fn join_room<'a>(
 #[delete("/<room_id>/players", format = "json")]
 pub async fn leave_room<'a>(
     room_id: usize,
-    user_repo: &State<UserRepository>,
-    room_repo: &State<RoomRepository>,
-    game_repo: &State<GameRepository>,
+    user_repo: &'a State<UserRepository>,
+    room_repo: &'a State<RoomRepository>,
+    game_repo: &'a State<GameRepository>,
     cookies: &CookieJar<'a>) 
--> Result<(), &'a str> {
+-> Result<(), Error<'a>> {
     let user_id = LoginToken::try_refresh(cookies).unwrap();
     let user = user_repo.get(user_id).await?;
     if user.current_room != Some(room_id) {
-        return Err("User is not in room!");
+        return Err((Status::Unauthorized, "User is not in room!"));
     }
     // check if room game is in progress
     let game = game_repo.get_game_from_room(room_id).await;
     if let Ok(game) = game {
         if game.is_in_progress() {
-            return Err("Cannot leave room while game is in progress! Finish or forfeit the game first!");
+            return Err((Status::ExpectationFailed, "Cannot leave room while game is in progress! Finish or forfeit the game first!"));
         }
     }
     
@@ -237,5 +210,5 @@ pub async fn leave_room<'a>(
         }
     }
     room_repo.update_room(room).await;
-    Err("User is not in room!")
+    Err((Status::Unauthorized, "User is not in room!"))
 }

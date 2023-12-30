@@ -7,13 +7,14 @@ use jsonwebtoken::get_current_timestamp;
 use rocket::http::Cookie;
 use rocket::http::CookieJar;
 use rocket::http::SameSite;
+use rocket::http::Status;
 use crate::model::login::LoginToken;
 
 const SECRET: &[u8] = b"pl@y3r53cr3t_is_v3ry_53cr3t_1236549871!";
 const COOKIE_NAME: &str = "login_user_token";
 
-type UserReturn<'a> = Result<usize, &'a str>;
-type EmptyReturn<'a> = Result<(), &'a str>;
+type UserReturn<'a> = Result<usize, (Status, &'a str)>;
+type EmptyReturn<'a> = Result<(), (Status, &'a str)>;
 
 impl LoginToken {
     /// Create a new JWT and store it in the cookies
@@ -38,7 +39,7 @@ impl LoginToken {
                 cookies.add_private(cookie);
                 Ok(user_id)
             },
-            Err(_) => Err("Error encoding token!"),
+            Err(_) => Err((Status::InternalServerError, "Error encoding token!")),
         };
     }
 
@@ -60,10 +61,10 @@ impl LoginToken {
             
             return match token_data {
                 Ok(token_data) => Ok(token_data.claims.user_id),
-                Err(_) => Err("Player not logged in: invalid token!"),
+                Err(_) => Err((Status::InternalServerError, "Player not logged in: invalid token!")),
             };
         } else {
-            return Err("Player is not logged in!");
+            return Err((Status::InternalServerError, "Player is not logged in!"));
         }
     }
     

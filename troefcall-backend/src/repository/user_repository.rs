@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::atomic::AtomicUsize};
-use rocket::tokio::sync::Mutex;
+use rocket::{tokio::sync::Mutex, http::Status};
 use crate::{model::{login::{User, UserId, Role}, game::Room}, controller::password};
 
 type Map<K, V> = Mutex<HashMap<K, V>>;
@@ -165,15 +165,15 @@ impl UserRepository{
     }
 
 }
-type ErrType<'a> = &'a str;
-type EndpointResult<'a, T> = Result<T, ErrType<'a>>;
+type Error<'a> = (Status, &'a str);
+type EndpointResult<'a, T> = Result<T, Error<'a>>;
 
 impl UserRepository {
-    pub async fn create_user<'a>(&'a self, username: &str, password: &'a str, role: Role) -> Result<User, ErrType<'a>> {
+    pub async fn create_user<'a>(&'a self, username: &str, password: &'a str, role: Role) -> Result<User, Error<'a>> {
         let username = username.to_string();
         let usernames = &mut self.usernames.lock().await;
         if usernames.contains_key(&username) {
-            return Err("Username already taken!");
+            return Err((Status::BadRequest, "Username already taken!"));
         }
         let password_hash = password::hash_password(password)?;
         let id = self.user_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -182,12 +182,12 @@ impl UserRepository {
         usernames.insert(username, id);
         Ok(user)
     }
-    pub async fn get(&self, id: UserId) -> Result<User, ErrType<'static>> {
-        self.users.lock().await.get(&id).cloned().ok_or("User does not exist!")
+    pub async fn get(&self, id: UserId) -> Result<User, Error<'static>> {
+        self.users.lock().await.get(&id).cloned().ok_or((Status::Unauthorized, "User does not exist!"))
     }
-    pub async fn get_by_username(&self, username: &str) -> Result<User, ErrType<'static>> {
+    pub async fn get_by_username(&self, username: &str) -> Result<User, Error<'static>> {
         let usernames = &self.usernames.lock().await;
-        let user_id = usernames.get(username).ok_or("User does not exist!")?;
+        let user_id = usernames.get(username).ok_or((Status::Unauthorized, "User does not exist!"))?;
         self.get(*user_id).await
     }
     pub async fn update(&self, user: User) -> bool {
