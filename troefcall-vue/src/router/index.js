@@ -22,12 +22,12 @@ const routes = [
       {
         path: '/rooms/:id',
         name: 'Room',
-        component: () => import('@/components/troefcall/RoomItem.vue'),
+        component: () => import('@/components/troefcall/room/RoomLobby.vue'),
       },
       {
         path: '/createroom',
         name: 'CreateRoom',
-        component: () => import('@/components/troefcall/CreateRoom.vue'),
+        component: () => import('@/components/troefcall/room/CreateRoom.vue'),
       },
     ],
   },

@@ -13,7 +13,7 @@
 
 <script>
   import { ref, onMounted } from 'vue';
-  import RoomList from '@/components/troefcall/RoomList.vue'
+  import RoomList from '@/components/troefcall/room/RoomList.vue'
   import {get} from '@/requests'
   import axios from 'axios'
 

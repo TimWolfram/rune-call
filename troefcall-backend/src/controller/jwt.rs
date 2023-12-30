@@ -34,7 +34,6 @@ impl LoginToken {
                 let cookie = Cookie::build(COOKIE_NAME, token.to_string())
                     .same_site(SameSite::None)
                     // .secure(true)
-                    // .domain("http://localhost:3000")
                     .finish();
                 cookies.add_private(cookie);
                 Ok(user_id)
@@ -61,15 +60,19 @@ impl LoginToken {
             
             return match token_data {
                 Ok(token_data) => Ok(token_data.claims.user_id),
-                Err(_) => Err((Status::InternalServerError, "Player not logged in: invalid token!")),
+                Err(_) => Err((Status::Unauthorized, "Player not logged in: invalid token!")),
             };
         } else {
-            return Err((Status::InternalServerError, "Player is not logged in!"));
+            return Err((Status::Unauthorized, "Player is not logged in!"));
         }
     }
     
     /// Remove the JWT from the cookies, effectively logging the user out
     pub fn remove_cookie(cookies: &CookieJar<'_>) {
         cookies.remove_private(Cookie::named(COOKIE_NAME));
+        cookies.add_private(Cookie::build(COOKIE_NAME, "")
+            .same_site(SameSite::None)
+            // .secure(true)
+            .finish());
     }
 }

@@ -12,6 +12,7 @@
 </template>
   
 <script setup>
+  import { onMounted } from 'vue';
   import { ref } from 'vue';
   
   // Sample users data
@@ -22,7 +23,9 @@
     null,
     // Add more users as needed
   ]);
-  
+  onMounted(() => {
+    console.log('Mounted room item');
+  });
   function join(index) {
     // Implement your join logic here
     console.log(`Joining at seat ${index}`);

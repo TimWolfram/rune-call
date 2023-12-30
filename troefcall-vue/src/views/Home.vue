@@ -19,14 +19,14 @@
     <p class="text-h5">Welcome, {{ loginUser.nickname }}!</p>
     <br/>
     <!-- display create room and browse rooms buttons -->
-    <v-btn block color="primary" size="large" @click="createRoom">Create Room</v-btn>
-    <br/>
-    <v-btn block color="primary" size="large" @click="browseRooms">Browse Rooms</v-btn>
+    <v-btn block color="primary" size="large" @click="createRoom">Create Room</v-btn> <br/>
+    <v-btn block color="primary" size="large" @click="browseRooms">Browse Rooms</v-btn> <br/>
+    <v-btn block color="primary" size="large" @click="logOut">Log out</v-btn> <br/>
   </v-container>
 </template>
 
 <script>
-  import { get } from '@/requests'
+  import { get, del } from '@/requests'
   
   export default {
     name: "Home",
@@ -48,15 +48,22 @@
         // redirect to room browse screen
         this.$router.push('/rooms');
       },
+      async logOut() {
+        // redirect to room browse screen
+        let response = await del('login');
+        if (!response.status === 200) {
+          console.log('Server response was not ok: ' + response.status + '\n' + response.statusText);
+        }
+        else {
+          console.log('logged out');
+        }
+        this.$router.push('/');
+      },
       async update() {
         // let pageUrl = 'login/testadmin'; 
         let pageUrl = 'login'; //login without form will check current logged in user
-        try {
-          let response = await get(pageUrl,{});
-          if (!response.status === 200) {
-            throw new Error('Server response was not ok: ' + response.status + '\n' + response.statusText);
-          }
-          let loginResponse = await response.data;
+        get(pageUrl,{}).then((response) =>{
+          let loginResponse = response.data;
           //print rooms to console as json
           console.log(`logged in user: \n${JSON.stringify(loginResponse, null, 2)}`);
           console.log('cookies from login response: ' + JSON.stringify(response.headers, null, 2));
@@ -64,10 +71,11 @@
           if (loginResponse.user_id !== null) {
             this.loginUser = loginResponse;
           }
-        } catch (err) {
-          console.error(err);
+        })
+        .catch((error) => {
+          console.log('Server response was not ok: ' + error);
           this.loginErr = true; // API call failed
-        }
+        });
       },
     },
     mounted() {

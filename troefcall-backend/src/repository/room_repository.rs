@@ -1,4 +1,3 @@
-
 use rocket::http::Status;
 use rocket::tokio::sync::Mutex;
 
@@ -28,13 +27,9 @@ impl Default for RoomRepository {
 }
 impl RoomRepository{
     pub fn test_repo() -> Self {
-        // let mut users = user_repo.users.lock().await;
-        // let user1 = users.get_mut(&0).unwrap();
-        // let user2 = users.get_mut(&1).unwrap();
-        // let user3 = users.get_mut(&2).unwrap();
         RoomRepository {
             rooms: Mutex::new(HashMap::from([
-                (0, Room::new(0, "Room 0".to_string(), "asdf".to_string(), &mut User::new(0, "Admin".to_string(), "".to_string(), "Admin".to_string(), Role::Admin))),
+                (0, Room::new(0, "Room 0 with a super long name for some reason, good luck displaying this properly".to_string(), "asdf".to_string(), &mut User::new(0, "Admin".to_string(), "".to_string(), "Admin".to_string(), Role::Admin))),
                 (1, Room::new(1, "Room 1".to_string(), "".to_string(), &mut User::new(1, "user1".to_string(), "".to_string(), "user1".to_string(), Role::Admin))),
                 (2, Room::new(2, "Room 2".to_string(), "".to_string(), &mut User::new(2, "user2".to_string(), "".to_string(), "user2".to_string(), Role::Admin))),
                 (3, Room::new(3, "Room 3".to_string(), "".to_string(), &mut User::new(3, "user3".to_string(), "".to_string(), "user3".to_string(), Role::Admin))),
@@ -42,7 +37,7 @@ impl RoomRepository{
                 (5, Room::new(5, "Room 5".to_string(), "".to_string(), &mut User::new(5, "user5".to_string(), "".to_string(), "user5".to_string(), Role::Admin))),
                 (6, Room::new(6, "Room 6".to_string(), "".to_string(), &mut User::new(6, "user6".to_string(), "".to_string(), "user6".to_string(), Role::Admin))),
             ])),
-            room_count: AtomicUsize::new(3),
+            room_count: AtomicUsize::new(100),
             hosts: Mutex::new(HashMap::from([
                 (0, 0),
                 (1, 1),
@@ -61,27 +56,22 @@ use crate::model::login::{UserId, User, Role};
 use super::UserRepository;
 
 impl RoomRepository {
-    // pub async fn get_rooms(&self) -> Vec<Room> {
-    //     self.rooms.lock().await.values().cloned().collect()
-    // }
     pub async fn get_rooms_paged(&self, start: usize, count: usize) -> Vec<Room> {
-        let rooms = self.rooms.lock().await;
-        rooms.values()
+        let mut rooms = self.rooms.lock().await.values()
             .filter(|room| room.game_in_progress == false)
-            .skip(start)
-            .take(count)
             .cloned()
-            .collect()
+            .collect::<Vec<Room>>();
+        rooms.sort_by_key(|room| room.id);
+        rooms.iter().skip(start).take(count).cloned().collect()
     }
-
+    
     pub async fn get_rooms_public_paged(&self, start: usize, count: usize) -> Vec<Room> {
-        let rooms = self.rooms.lock().await;
-        rooms.values()
-            .filter(|room| room.password.len() == 0)
-            .skip(start)
-            .take(count)
+        let mut rooms = self.rooms.lock().await.values()
+            .filter(|room| room.game_in_progress == false & (room.password.len() == 0))
             .cloned()
-            .collect()
+            .collect::<Vec<Room>>();
+        rooms.sort_by_key(|room| room.id);
+        rooms.iter().skip(start).take(count).cloned().collect()
     }
 
     // pub async fn get_room_by_host(&self, host_user_id: UserId) -> Result<Room, &'static str> {

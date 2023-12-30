@@ -201,14 +201,15 @@ pub async fn leave_room<'a>(
             return Ok(());
         }
     }
-    for i in 0..4 {
-        if let Some(p) = &room.players[i] {
-            if p.user_id == user_id {
-                room.players[i] = None;
-                return Ok(());
+    else {
+        for i in 0..4 {
+            if let Some(p) = &room.players[i] {
+                if p.user_id == user_id {
+                    room.players[i] = None;
+                }
             }
         }
     }
     room_repo.update_room(room).await;
-    Err((Status::Unauthorized, "User is not in room!"))
+    return Ok(());
 }
