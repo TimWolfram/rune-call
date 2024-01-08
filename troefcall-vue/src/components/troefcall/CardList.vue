@@ -14,7 +14,7 @@
   mounted()
   {
     setInterval(() => {
-    this.updatePrices();
+      //todo: update cards
     }, 1000);
   }
 </script>

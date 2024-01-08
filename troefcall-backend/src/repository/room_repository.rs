@@ -56,6 +56,10 @@ use crate::model::login::{UserId, User, Role};
 use super::UserRepository;
 
 impl RoomRepository {
+    pub async fn get_rooms_count(&self) -> usize {
+        self.rooms.lock().await.len()
+    }
+
     pub async fn get_rooms_paged(&self, start: usize, count: usize) -> Vec<Room> {
         let mut rooms = self.rooms.lock().await.values()
             .filter(|room| room.game_in_progress == false)
@@ -143,12 +147,12 @@ impl RoomRepository {
         let mut hosts = self.hosts.lock().await;
         let room_id = hosts.get(&from_user_id).cloned();
         match room_id {
+            None => false,
             Some(room_id) => {
                 hosts.remove(&from_user_id);
                 hosts.insert(to_user_id, room_id);
                 true
             }
-            None => false,
         }
     }
     

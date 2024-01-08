@@ -58,6 +58,7 @@ pub async fn login<'a>(user_repo: &State<UserRepository>,
 
 #[delete("/")]
 pub async fn logout(cookies: &CookieJar<'_>) -> EmptyReturn<'static> {
+    // might want to be removing cookie/state on client side manually instead of using this
     LoginToken::from_cookies(cookies)?; // return error if not logged in
     LoginToken::remove_cookie(cookies); 
     Ok(())
@@ -88,10 +89,10 @@ pub async fn register<'a>(user_repo: &'a State<UserRepository>,
     }
         
     if username.len() < 3 {
-        return Err((Status::Unauthorized, "Username must be at least 3 characters long!"));
+        return Err((Status::BadRequest, "Username must be at least 3 characters long!"));
     }
     if password.len() < 6 {
-        return Err((Status::Unauthorized, "Password must be at least 6 characters long!"));
+        return Err((Status::BadRequest, "Password must be at least 6 characters long!"));
     }
     let user = user_repo.create_user(username, password, Role::Player).await?;
     LoginToken::create(user.id, cookies)?;

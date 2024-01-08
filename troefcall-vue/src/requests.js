@@ -20,7 +20,7 @@ export function post(path, params) {
 export function put(path, params) {
     var instance = getInstance();
     return instance.put(HOST + path, params, config);
-}   
+}
 
 export function del(path, params) {
     var instance = getInstance();

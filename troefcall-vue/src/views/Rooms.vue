@@ -3,11 +3,11 @@
   <v-container v-if="error === null">
     <v-alert type="info">Loading...</v-alert>
   </v-container>
-  <v-container v-else-if="error === false">
-    <RoomList :rooms=rooms />
+  <v-container v-else-if="error === true">
+    <v-alert type="error">Could not reach server; try again later!</v-alert>
   </v-container>
   <v-container v-else>
-    <v-alert type="error">Could not reach server; try again later!</v-alert>
+    <RoomList :rooms=rooms />
   </v-container>
 </template>
 
@@ -31,21 +31,18 @@
     },
     methods: {
       async update() {
-        try {
-          let pageUrl = 'rooms/page/' + this.page;
-          let response = await get(pageUrl);
-          if (!response.status === 200) {
-            throw new Error('Server response was not ok');
-          }
+        let pageUrl = 'rooms/page/' + this.page;
+        let response = await get(pageUrl).then(response => {
           let newRooms = response.data;
           //print rooms to console as json
           console.log("rooms: \n" + JSON.stringify(newRooms));
           this.rooms = newRooms;
-          this.error = false; // API call was successful
-        } catch (error) {
+          this.error = false;
+        })
+        .catch(error => {
           console.error('Failed to fetch rooms:', error);
           this.error = true; // API call failed
-        }
+        });
       },
       async nextPage() {
         this.page++;

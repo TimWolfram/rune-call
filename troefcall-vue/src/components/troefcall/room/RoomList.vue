@@ -1,5 +1,4 @@
 <template>
-  <v-container>
     <div v-if="rooms.length === 0">
       <p>No rooms available! Create a new room or try again later.</p>
       <!-- link to room create screen -->
@@ -7,16 +6,12 @@
     </div>
     <v-container v-else 
     class="d-flex flex-wrap"
-    min-height="200"
   >
   <RoomListItem 
     class="d-flex align-content-space-around flex-wrap bg-surface-variant"
-        width="200"
-        height="200" 
         :room="room"
         v-for="room in rooms" :key="room.id" />        
     <!-- <v-sheet v-for="n in 20" :key="n" class="ma-2 pa-2"> Flex item </v-sheet> -->
-  </v-container>
   </v-container>
 </template>
 

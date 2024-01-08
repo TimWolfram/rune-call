@@ -15,19 +15,31 @@ const routes = [
         component: () => import(/* webpackChunkName: "home" */ '@/views/Home.vue'),
       },
       {
+        path: '/login',
+        name: 'Login',
+        component: () => import('@/views/Login.vue'),
+      },
+      {
+        path: '/register',
+        name: 'Register',
+        component: () => import('@/views/Register.vue'),
+      },
+      
+      {
         path: '/rooms',
         name: 'RoomsList',
         component: () => import('@/views/Rooms.vue'),
       },
       {
+        path: 'rooms/createroom',
+        name: 'CreateRoom',
+        component: () => import('@/components/troefcall/room/CreateRoom.vue'),
+      },
+      {
         path: '/rooms/:id',
         name: 'Room',
         component: () => import('@/components/troefcall/room/RoomLobby.vue'),
-      },
-      {
-        path: '/createroom',
-        name: 'CreateRoom',
-        component: () => import('@/components/troefcall/room/CreateRoom.vue'),
+        props: route => ({ id: Number(route.params.id) }),
       },
     ],
   },

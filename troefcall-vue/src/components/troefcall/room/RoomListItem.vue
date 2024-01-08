@@ -1,17 +1,27 @@
 <template>
   <v-card
-            class="pa-1 ma-1 text-center"
-            width="200"
+            class="pa-2 ma-2 text-center"
+            width="300"
             height="200"
             rounded="lg"
             @click="handleClick(room.id)"> 
     <v-card-title>
-      {{ getRoomDisplayName(room.name) }} <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon>
+      {{ getRoomDisplayName(room.name) }}
     </v-card-title> 
+    <v-divider/>
     <v-card-text>
-      Host: {{ getHostName(room.host_id) }}
-      <br/>
-      Players: {{ getActivePlayersCount(room.players) }}/4
+      <v-row>
+        <v-col>
+          
+          Host: {{ getHostName(room.host_id) }}
+          <br/>
+          Players: {{ getActivePlayersCount(room.players) }}/4
+        </v-col>
+        <v-col>
+          <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon>
+          <v-icon v-else><br/>mdi-lock-open-outline</v-icon>
+        </v-col>
+      </v-row>
     </v-card-text>
   </v-card>
 </template>

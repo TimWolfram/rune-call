@@ -42,7 +42,7 @@ impl LoginToken {
         };
     }
 
-    /// Gets the user ID from the JWT stored in the cookies, and refreshes it
+    /// Gets the user ID from the JWT stored in the cookies, and refreshes its duration (1 week)
     pub fn try_refresh(cookies: &CookieJar<'_>) -> UserReturn<'static> {
         let user_id = LoginToken::from_cookies(cookies)?;
         LoginToken::create(user_id, cookies)?;
@@ -71,7 +71,7 @@ impl LoginToken {
         cookies.remove_private(Cookie::named(COOKIE_NAME));
         cookies.add_private(Cookie::build(COOKIE_NAME, "")
             .same_site(SameSite::None)
-            // .secure(true)
+            // .secure(true) //HTTPS only
             .finish());
     }
 }
