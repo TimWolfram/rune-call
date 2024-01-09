@@ -19,12 +19,12 @@
   <v-navigation-drawer v-model="settingsDrawer" location="right" temporary>
     <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme" class="ml-3"/>
     
-    <div v-if="auth.loggedIn">
-      <v-text-field v-model="displayName" label="Display Name"/>
-      <v-btn label="Save Display Name" @click="saveDisplayName"/>
+    <div v-if="!auth.loggedIn">
+      <v-btn label="Log in" to="login"/>
     </div>
     <div v-else>
-      <v-btn to="login">Log in</v-btn>
+    <v-btn label="Log out" @click="auth.logOut"/>
+      <v-text-field v-model="displayName" label="Display Name"/>
       <v-btn label="Save Display Name" @click="saveDisplayName"/>
     </div>
   </v-navigation-drawer>
@@ -33,7 +33,6 @@
 <script setup>
 
   import { ref, onMounted } from 'vue';
-  import Cookies from 'js-cookie';
   import { useTheme } from 'vuetify'
   import { useAuthStore } from '@/store/auth';
   import { usePreferencesStore } from '@/store/preferences';
@@ -77,19 +76,6 @@
   function saveDisplayName() {
     auth.setDisplayName(displayName.value);
     console.log('Saved display name as: ' + displayName.value);
-  }
-
-  function logOut() {
-    let response = del('login').then((response) => {
-      useAuthStore().logout();
-      console.log('logged out!');
-      // redirect to home screen
-      this.$router.push('/');
-    })
-    .catch((error) => {
-      console.error('Log out failed!: ' + error);  
-      useAuthStore().logout();
-    });
   }
 
 </script>

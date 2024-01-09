@@ -11,6 +11,7 @@ pub struct UserRepository {
 }
 impl Default for UserRepository {
     fn default() -> Self {
+        println!("Creating user repository with default admin account.");
         //create default admin user: otherwise, we cannot create any other admins
         let admin_name = "admin".to_string();
         UserRepository {
@@ -34,6 +35,7 @@ impl Default for UserRepository {
 
 impl UserRepository{
     pub fn test_repo() -> Self {
+        println!("Creating user repository with test data.");
         UserRepository {
             users: Mutex::new(HashMap::from([
                 (0, User {
@@ -163,8 +165,8 @@ impl UserRepository{
             user_count: AtomicUsize::new(15),
         }
     }
-
 }
+
 type Error<'a> = (Status, &'a str);
 type EndpointResult<'a, T> = Result<T, Error<'a>>;
 

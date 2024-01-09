@@ -29,17 +29,16 @@ impl Game {
             .map(|player| player.unwrap())
             .collect::<Vec<Player>>()
             .try_into()
-            .or(Err((Status::InternalServerError, "Room should have 4 players!")))?;
+            .or(Err((Status::Conflict, "Cannot start the game: room should have 4 players!")))?;
 
-        // check who the next starting player should be
+        // check who the next starting player should be based on who won last game
         enum StartingPlayer {
             Last,
             Next,
             Random,
         }
-        
         let starting_player = match last_game {
-            None => StartingPlayer::Random,
+            None => StartingPlayer::Random, //pick random starting player
             Some(game) => {
                 let GameState::Finished { winners, reason: _ } = game.game_state else {
                     return Err((Status::BadRequest, "Last game is not finished!"));
@@ -78,7 +77,6 @@ impl Game {
         for player in &mut players {
             player.current_cards = deck.drain(0..5).collect();
         }
-        let players: [Player; 4] = players.try_into().unwrap();
         let game = Game {
             players,
             played_rounds: Vec::new(),
@@ -111,9 +109,8 @@ impl Game {
     /// Pick a tjall suit aka trump aka "troef".
     /// This starts the game; changing its state from `Starting` to `Playing`.
     pub fn pick_tjall_and_start(&mut self, suit: Suit) -> Result<(), Error<'static>> {
-        let GameState::Starting { remaining_deck: _ } = &mut self.game_state 
-        else {
-            return Err((Status::BadRequest, "Game is not starting!"));
+        let GameState::Starting { remaining_deck: _ } = self.game_state else {
+            return Err((Status::Conflict, "Game is not starting!"));
         };  
         
         self.game_state = GameState::Playing {
@@ -131,7 +128,7 @@ impl Game {
         // check if player has card
         let player = &self.players[index];
         if !player.current_cards.contains(&card) {
-            return Err((Status::Unauthorized, "You do not have this card!"));
+            return Err((Status::Forbidden, "You do not have this card!"));
         }
         let GameState::Playing { ref mut current_round, tjall } = self.game_state else {
             return Err((Status::Conflict, "Game is not in progress!"));
@@ -231,6 +228,7 @@ pub async fn create_game<'a>(
 
     Ok(Json(game.clone()))
 }
+
 #[put("/<room_id>/game", data = "<card>")]
 pub async fn play_card<'a>(
     room_id: RoomId,
@@ -300,8 +298,8 @@ pub async fn play_card<'a>(
         _ => return Err((Status::Conflict, "Game is not in progress!")),
     }
     Ok(Json(game.clone()))
-    
 }
+
 #[delete("/<room_id>/game", format = "json")]
 pub async fn forfeit<'a> (
     room_id: RoomId,
@@ -386,10 +384,9 @@ pub async fn get_cards_admin<'a> (
     cookies: &CookieJar<'_>,
 ) -> Result<Json<Vec<Card>>, Error<'a>> {
     let logged_in_user = user_repo.get(LoginToken::try_refresh(cookies)?).await?;
-    if let Role::Admin = logged_in_user.role {
-    } else {
+    if logged_in_user.role  != Role::Admin {
         return Err((Status::Unauthorized, "You are not an admin!"));
-    }
+    };
 
     // user is admin: get cards for player at index
     room_repo
@@ -402,8 +399,7 @@ pub async fn get_cards_admin<'a> (
     let player = game.players[player_index].clone();
     let GameState::Playing {
         current_round,
-        tjall: _,
-    } = game.game_state else {
+        tjall: _, } = game.game_state else {
         return Err((Status::Unauthorized, "Game is not in progress!"));
     };
     let round_suit = current_round.played_cards[0].suit;

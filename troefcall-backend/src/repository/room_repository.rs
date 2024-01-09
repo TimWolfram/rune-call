@@ -52,14 +52,13 @@ impl RoomRepository{
 }
 
 use crate::model::login::{UserId, User, Role};
-
 use super::UserRepository;
 
 impl RoomRepository {
     pub async fn get_rooms_count(&self) -> usize {
         self.rooms.lock().await.len()
     }
-
+    /// Returns a vector of all rooms in the repository, sorted by id. Uses pagination.
     pub async fn get_rooms_paged(&self, start: usize, count: usize) -> Vec<Room> {
         let mut rooms = self.rooms.lock().await.values()
             .filter(|room| room.game_in_progress == false)
@@ -68,7 +67,7 @@ impl RoomRepository {
         rooms.sort_by_key(|room| room.id);
         rooms.iter().skip(start).take(count).cloned().collect()
     }
-    
+    /// Returns a vector of all public rooms in the repository, sorted by id. Uses pagination.
     pub async fn get_rooms_public_paged(&self, start: usize, count: usize) -> Vec<Room> {
         let mut rooms = self.rooms.lock().await.values()
             .filter(|room| room.game_in_progress == false & (room.password.len() == 0))
@@ -77,7 +76,6 @@ impl RoomRepository {
         rooms.sort_by_key(|room| room.id);
         rooms.iter().skip(start).take(count).cloned().collect()
     }
-
     // pub async fn get_room_by_host(&self, host_user_id: UserId) -> Result<Room, &'static str> {
     //     let hosts = self.hosts.lock().await;
     //     let room_id = hosts.get(&host_user_id).cloned()
@@ -86,16 +84,15 @@ impl RoomRepository {
     //     rooms.get(&room_id).cloned()
     //         .ok_or("Room no longer exists!")
     // }
+    /// Returns whether the user with the given `user_id` is hosting the room with the given `room_id`.
     pub async fn user_is_host<'a> (&self, user_id: usize, room_id: RoomId) -> bool {
         let hosts = self.hosts.lock().await;
         hosts.get(&user_id) == Some(&room_id)
     }
-
     pub async fn get_room_by_id<'a> (&self, room_id: RoomId) -> Result<Room, Error> {
         let rooms = self.rooms.lock().await;
         rooms.get(&room_id).cloned().ok_or((Status::Unauthorized, "Game not found!"))
     }
-
     pub async fn create_room<'a> (&self, host_user: &mut User, name: String, password: String) -> Result<Room, Error<'a>> {
         if host_user.current_room.is_some() {
             return Err((Status::Unauthorized, "User is already in a room! Leave the room before creating a new one!"));
@@ -126,7 +123,6 @@ impl RoomRepository {
         host_user.current_room = Some(new_room.id.clone());
         Ok(new_room)
     }
-
     pub async fn update_room(&self, room: Room) -> bool {
         let mut rooms = self.rooms.lock().await;
         if rooms.contains_key(&room.id) {
@@ -136,7 +132,6 @@ impl RoomRepository {
             false
         }
     }
-    
     /// This function transfers the host of a room from one user to another.
     /// The user with the given `from_user_id` is removed as a host of the room,
     /// and the user with the given `to_user_id` is added as a host of the room.
@@ -155,7 +150,6 @@ impl RoomRepository {
             }
         }
     }
-    
     pub async fn delete_room(&self, room_id: &RoomId) -> Option<Room> {
         let room = self.rooms.lock().await.remove(room_id)?;
         let host_id = room.host_id;

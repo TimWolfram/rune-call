@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
     <!-- login form -->
     <v-container>
@@ -77,7 +78,7 @@ function register() {
     }).catch(error => {
         console.error('Failed to register: ' + JSON.stringify(error.response.data));
     });
-};
+}
 
 //on mounted
 onMounted(() => {
