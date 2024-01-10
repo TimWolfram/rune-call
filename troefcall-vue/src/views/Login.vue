@@ -8,8 +8,8 @@
                         <span class="headline">Login</span>
                     </v-card-title>
                     <!-- login/register errors -->
-                    <v-alert v-if="error" type="error">
-                        Failed to login: {{ error }}
+                    <v-alert v-if="loginError" type="error">
+                        Failed to login: {{ loginError }}
                     </v-alert>
                     <v-card-text>
                         <v-form @keyup.enter="login">
@@ -40,7 +40,7 @@ import { useAuthStore } from '@/store/auth';
 
 const username = ref("");
 const password = ref("");
-const error = ref(null);
+const loginError = ref(null);
 const auth = useAuthStore();
 
 function login() {
@@ -49,12 +49,14 @@ function login() {
     .then((response) => {
         console.log(`logged in user: \n${JSON.stringify(response.data, null, 2)}`);
         console.warn("TODO: login");
-        error.value = null;
+        loginError.value = null;
     }).catch((error) => {
-        error.value = error.response.data.message;
-        console.error('Failed to login: ' + error.response.data.message);
+        console.error(error);
+        let errorMessage = error?.message ?? "No response from server";
+        loginError.value = errorMessage;
+        console.error('Failed to login: ' + errorMessage);
     });
-};
+}
 
 //on mounted
 onMounted(() => {

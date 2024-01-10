@@ -63,7 +63,7 @@ pub async fn create_room<'a>(
     let password = create_room_form.password.clone();
     
     //get currently logged in user
-    let user_id = LoginToken::try_refresh(cookies)?;
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     let mut user = user_repo.get(user_id).await?;
     //find user
     let room = room_repo.create_room(&mut user, name, password).await?;
@@ -79,7 +79,7 @@ pub async fn swap_player_seats<'a> (
     cookies: &'a CookieJar<'a>)
 -> Result<Json<Room>, Error<'a>> {
     //only host can swap player seats: check if logged in player is host of room
-    let host_user_id: usize = LoginToken::try_refresh(cookies)?;
+    let host_user_id: usize = LoginToken::refresh_jwt(cookies)?;
     let mut room: Room = room_repo.get_room_by_id(room_id).await?;
     if room.host_id != host_user_id { return Err((Status::Unauthorized, "Only the host can swap player seats!")); }
     let swap: (usize, usize) = swap.into_inner();
@@ -95,7 +95,7 @@ pub async fn delete_room<'a>(
     cookies: &'a CookieJar<'a>) 
 -> Result<(), Error<'a>> {
     //no need to lock mutex if user is not logged in
-    let user_id = LoginToken::try_refresh(cookies)?;
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     
     let mut host = user_repo
             .get(user_id).await?;
@@ -123,7 +123,7 @@ pub async fn join_room<'a>(
     player: Option<Json<LoginForm<'_>>>,
     cookies: &'a CookieJar<'a> ) 
 -> Result<Json<Room>, Error<'a>> {
-    let user_id = LoginToken::try_refresh(cookies).unwrap();
+    let user_id = LoginToken::refresh_jwt(cookies).unwrap();
     let mut user = user_repo.get(user_id).await?;
     if user.role == Role::Admin {
         if let Some(player) = player {
@@ -167,7 +167,7 @@ pub async fn leave_room<'a>(
     game_repo: &'a State<GameRepository>,
     cookies: &CookieJar<'a>) 
 -> Result<(), Error<'a>> {
-    let user_id = LoginToken::try_refresh(cookies).unwrap();
+    let user_id = LoginToken::refresh_jwt(cookies).unwrap();
     let user = user_repo.get(user_id).await?;
     if user.current_room != Some(room_id) {
         return Err((Status::Unauthorized, "User is not in room!"));

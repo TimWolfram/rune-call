@@ -1,5 +1,3 @@
-use std::f32::consts::E;
-
 use crate::model::game::{
     Card, EndGameReason, Game, GameState, Player, Room, RoomId, Suit, Round,
 };
@@ -106,6 +104,7 @@ impl Game {
             true
         }
     }
+
     /// Pick a tjall suit aka trump aka "troef".
     /// This starts the game; changing its state from `Starting` to `Playing`.
     pub fn pick_tjall_and_start(&mut self, suit: Suit) -> Result<(), Error<'static>> {
@@ -114,15 +113,12 @@ impl Game {
         };  
         
         self.game_state = GameState::Playing {
-            current_round: Round {
-                played_cards: Vec::new(),
-                starting_player_index: 0,
-                round_winner: None,
-            },
+            current_round: Round::new(),
             tjall: suit,
         };
         Ok(())
     }
+
     /// Play a card.
     pub fn play_card(&mut self, card: Card, index: usize) -> Result<(), Error<'static>> {
         // check if player has card
@@ -149,6 +145,8 @@ impl Game {
             for played_card in &current_round.played_cards {
                 winning_card = Card::compare(winning_card, played_card, tjall);
             }
+            let winning_card_index = current_round.played_cards.iter().position(|c| c == winning_card).unwrap();
+            current_round.set_winner(winning_card_index);
         }
         Ok(())
     }
@@ -156,21 +154,14 @@ impl Game {
 
 impl Card {
     pub fn compare<'a>(highest: &'a Card, new: &'a Card, tjall: Suit) -> &'a Card {
-        match highest.suit != new.suit {
-            true => {
-                if new.suit == tjall {
-                    return new;
-                }
-                return highest;
-            }
-            false => {
-                assert!(highest.value != new.value);
-                if highest.value > new.value {
-                    return highest;
-                } else {
-                    return new;
-                }
-            }
+        match highest.suit == new.suit {
+            // if suit is different, new wins if suit is tjall
+            false if new.suit == tjall => new,
+            false => highest,
+
+            // if suit is same, new wins if value is higher
+            true if highest.value > new.value => highest,
+            true => new,
         }
     }
 }
@@ -198,10 +189,10 @@ pub async fn create_game<'a>(
     room_repo: &'a State<RoomRepository>,
     user_repo: &'a State<UserRepository>,
     game_repo: &'a State<GameRepository>,
-    cookies: &'a CookieJar<'a>,
+    cookies: &'a CookieJar<'a>
 ) -> Result<Json<Game>, Error<'a>> {
     // first check if player is logged in before trying to create game; if not, no need to lock mutex
-    let logged_in_user_id = LoginToken::try_refresh(cookies)?;
+    let logged_in_user_id = LoginToken::refresh_jwt(cookies)?;
 
     let user = user_repo.get(logged_in_user_id).await?;
     if user.current_room != Some(room_id) {
@@ -238,7 +229,7 @@ pub async fn play_card<'a>(
     card: Json<Card>,
     cookies: &'a CookieJar<'a>,
 ) -> Result<Json<Game>, Error<'a>> {
-    let user_id = LoginToken::try_refresh(cookies)?;
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     let room = room_repo
         .get_room_by_id(room_id)
         .await?;
@@ -250,17 +241,20 @@ pub async fn play_card<'a>(
     let user = user_repo.get(user_id).await?;
 
     match game.game_state {
-        GameState::Playing { ref current_round , tjall: _} => { //let player play card
+        GameState::Playing { ref current_round , tjall: _} => {
             // check if it is player's turn (or player is admin)
             let player_turn = current_round.played_cards.len();
-            let index = if let Role::Admin = user.role {
-                // user is admin; allow them to play card as if they are current player
-                Some(player_turn)
-            } else {
-                // user is not admin; check if they are current player
-                room.players.iter().position(|room_player| {
-                    room_player.as_ref().map_or(false, |p| p.user_id == user_id)
-                })
+            let index = match user.role {
+                Role::Admin => {
+                    // user is admin; allow them to play card as if they are current player
+                    Some(player_turn)
+                }
+                _ => {
+                            // user is not admin; check if they are current player
+                            room.players.iter().position(|room_player| {
+                                room_player.as_ref().map_or(false, |p| p.user_id == user_id)
+                            })
+                        }
             }.ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
             if index != player_turn {
                 return Err((Status::BadRequest, "It is not your turn!"));
@@ -306,7 +300,7 @@ pub async fn forfeit<'a> (
     game_repo: &'a State<GameRepository>,
     cookies: &'a CookieJar<'_>,
 ) -> Result<Json<Game>, Error<'a>> {
-    let user_id = LoginToken::try_refresh(cookies)?;
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     let game = forfeit_player(game_repo, room_id, user_id).await?;
     Ok(Json(game))
 }
@@ -331,8 +325,9 @@ pub async fn forfeit_player<'a> (game_repo: &'a State<GameRepository>, room_id: 
         1 => { // odd
             [game.players[0].clone(), game.players[2].clone()]
         }
-        _ => unreachable!(),
+        _ => unreachable!(), //should never happen
     };
+
     //game is updated instead of actually deleted, because we need to remember last game's winners
     game.game_state = GameState::Finished {
         winners,
@@ -352,7 +347,7 @@ pub async fn get_cards<'a>(
     user_repo: &'a State<UserRepository>,
     cookies: &'a CookieJar<'a>,
 ) -> Result<Json<Vec<Card>>, Error<'a>> {
-    let user_id = LoginToken::try_refresh(cookies)?;
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     room_repo
         .get_room_by_id(room_id)
         .await?;
@@ -383,7 +378,7 @@ pub async fn get_cards_admin<'a> (
     player_index: usize,
     cookies: &CookieJar<'_>,
 ) -> Result<Json<Vec<Card>>, Error<'a>> {
-    let logged_in_user = user_repo.get(LoginToken::try_refresh(cookies)?).await?;
+    let logged_in_user = user_repo.get(LoginToken::refresh_jwt(cookies)?).await?;
     if logged_in_user.role  != Role::Admin {
         return Err((Status::Unauthorized, "You are not an admin!"));
     };
@@ -397,29 +392,10 @@ pub async fn get_cards_admin<'a> (
         .await?;
 
     let player = game.players[player_index].clone();
-    let GameState::Playing {
-        current_round,
-        tjall: _, } = game.game_state else {
+    let GameState::Playing { current_round, tjall: _, } = game.game_state else {
         return Err((Status::Unauthorized, "Game is not in progress!"));
     };
     let round_suit = current_round.played_cards[0].suit;
     let valid_cards = Game::valid_cards(&player, round_suit);
     Ok(Json(valid_cards))
 }
-// #[post("/<room_id>/game/tjall/<suit>")]
-// pub async fn pick_tjall(
-//     room_id: RoomId,
-//     suit: Suit,
-//     game_repo: &State<GameRepository>,
-//     user_repo: &State<UserRepository>
-// ) -> Result<Json<Game>, Type<'static>>{
-//     // check if game is starting
-//     let game = game_repo.get_game_from_room(room_id).await?;
-//     unimplemented!();
-//     // check if user is admin
-//     // check if suit is valid
-//     // pick tjall
-//     // deal remaining cards
-//     // 
-//     // return game
-// }

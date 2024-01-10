@@ -3,9 +3,10 @@
     <p class="text-h5">Welcome to Tjall!</p>
     <br/>
     <p>
-      Tjall is a chat application for playing Tjall (a.k.a "Troefcall"). You can create a room
-      and invite your friends to play with you. Read more about Tjall <router-link to="about">here.</router-link>.
+      Tjall is a chat application for playing Tjall (a.k.a "Troefcall").
       <br/>
+      You can create a room and invite your friends to play with you. Read more about Tjall <router-link to="about">here</router-link>.
+      <br/> <br/>
       To get started, <router-link to="login">log in</router-link> or register an account.
     </p>
   </v-container>

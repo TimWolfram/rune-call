@@ -14,9 +14,19 @@ use rocket::{response::Redirect, http::Status};
 #[macro_use]
 extern crate rocket;
 
+const CREATE_TEST_DATA: bool = false;
+
 #[launch]
 /// Launches the rocket server
 fn rocket() -> _ {
+    //create user repository
+    let user_repo = 
+        if CREATE_TEST_DATA {UserRepository::test_repo()}
+        else {UserRepository::default()};
+    let room_repo = 
+        if CREATE_TEST_DATA{RoomRepository::test_repo(user_repo.clone())}
+        else {RoomRepository::default()};
+
     rocket::build()
         //mount endpoints
         .mount("/login", routes![
@@ -51,8 +61,8 @@ fn rocket() -> _ {
             secret,
         ])
         //add state: using in-memory repositories instead of databases
-        .manage(UserRepository::test_repo())
-        .manage(RoomRepository::test_repo())
+        .manage(user_repo)
+        .manage(room_repo)
         .manage(GameRepository::default())
         // add cors fairing
         .attach(cors::CORS)
