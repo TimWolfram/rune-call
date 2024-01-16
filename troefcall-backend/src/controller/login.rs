@@ -9,31 +9,13 @@ type Error<'a> = (Status, &'a str);
 type ObjectReturn<'a, T> = Result<Json<T>, Error<'a>>;
 type EmptyReturn<'a> = Result<(), Error<'a>>;
 
-#[get("/testadmin", format="json")]
-pub async fn testadmin<'a>(user_repo: &'a State<UserRepository>,
-    cookies: &'a CookieJar<'a>)
--> ObjectReturn<'a, User> {
-    // test: login as admin
-    let user = user_repo.get(0).await;
-    match user {
-        Ok(user) => {
-            if user.role != Role::Admin {
-                return Err((Status::InternalServerError, "Admin user not found!"));
-            }
-            LoginToken::create(user.id, cookies)?;
-            Ok(Json(user))
-        },
-        Err(_) => return Err((Status::InternalServerError, "Admin user not found!")),
-        
-    }
-}
-
 #[get("/", data="<form>", format="json")]
 pub async fn login<'a>(user_repo: &State<UserRepository>,
     form: Option<Json<LoginForm<'a>>>,
     cookies: &'a CookieJar<'a>)
 -> ObjectReturn<'a, User> {
     if form.is_none() {
+        println!("Login: no form; trying to get user id from cookies!");
         //if no form, check if user is logged in
         let user_id = LoginToken::from_cookies(cookies)?;
         let user = user_repo.get(user_id).await;
@@ -43,7 +25,7 @@ pub async fn login<'a>(user_repo: &State<UserRepository>,
         }
     }
     let form = form.unwrap();
-    let user = user_repo.get_by_username(form.username).await;
+    let user: Result<User, (Status, &str)> = user_repo.get_by_username(form.username).await;
     let user = match user {
         Ok(user) => user,
         Err(_) => return Err((Status::NotFound, "User not found!")),
@@ -72,7 +54,8 @@ pub async fn register<'a>(user_repo: &'a State<UserRepository>,
     let logged_in_user = LoginToken::from_cookies(cookies);
     let username = form.username;
     let password = form.password;
-    if let Ok(user) = logged_in_user {
+    println!("Registering user :\n\t{}\nwith password:\n\t{}", username, password);
+    if let Ok(_user) = logged_in_user {
         let logged_in_user = user_repo.get(logged_in_user.unwrap()).await?;
         // check if user is admin to create another admin
         if let Role::Admin = logged_in_user.role {

@@ -28,7 +28,12 @@ impl Default for RoomRepository {
 }
 impl RoomRepository{
     pub fn test_repo(user_repo: UserRepository) -> Self {
+        let mut room_amt: usize = 30;
         let users:HashMap<usize, User> = user_repo.users.into_inner();
+        if users.len() < room_amt {
+            println!("Not enough users in user repo to create test {room_amt} rooms!");
+            room_amt = users.len();
+        }
         let rooms_map = HashMap::from([
             (0, Room::new(0, "Room 0 with a super long name for some reason, good luck displaying this properly".to_string(), "asdf".to_string(), users.get(&0).unwrap()))
         ]);

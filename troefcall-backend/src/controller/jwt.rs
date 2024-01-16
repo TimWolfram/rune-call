@@ -51,27 +51,30 @@ impl LoginToken {
 
     /// Get the user ID from the JWT stored in the cookies
     pub fn from_cookies(cookies: &CookieJar<'_>) -> UserReturn<'static> {
-        let jwt = cookies.get_private(COOKIE_NAME);
-        let Some(cookie) = jwt else {
-            return Err((Status::Unauthorized, "Player is not logged in!"));
+        let Some(cookie) = cookies.get_private(COOKIE_NAME) else {
+            return Err((Status::Unauthorized, "User is not logged in; no JWT token found!"));
         };
         let jwt: &str = &cookie.value();
         let decoding_key: &DecodingKey = &DecodingKey::from_secret(SECRET);
         let validation: &Validation = &Validation::default();
-        let token_data = jsonwebtoken::decode::<LoginToken>(jwt, decoding_key, validation);
-        
-        return match token_data {
+        return match jsonwebtoken::decode::<LoginToken>(jwt, decoding_key, validation) {
             Ok(token_data) => Ok(token_data.claims.user_id),
-            Err(_) => Err((Status::Unauthorized, "Player not logged in: invalid token!")),
+            Err(err) => 
+                match err.kind() {
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature 
+                        => Err((Status::Unauthorized, "User not logged in: JWT token expired!")),
+                    _ 
+                        => Err((Status::Unauthorized, "User not logged in: invalid JWT token!")),
+                },
         };
     }
     
     /// Remove the JWT from the cookies, effectively logging the user out
     pub fn remove_cookie(cookies: &CookieJar<'_>) {
         cookies.remove_private(Cookie::named(COOKIE_NAME));
-        cookies.add_private(Cookie::build(COOKIE_NAME, "")
-            .same_site(SameSite::None)
-            // .secure(true) //HTTPS only
-            .finish());
+        // cookies.add_private(Cookie::build(COOKIE_NAME, "")
+        //     .same_site(SameSite::None)
+        //     // .secure(true) //HTTPS only
+        //     .finish());
     }
 }

@@ -1,3 +1,4 @@
+<!--eslint-disable vue/multi-word-component-names -->
 <template>
     <!-- login form -->
     <v-container>
@@ -34,7 +35,6 @@
 <script setup>
 
 import { ref, onMounted } from 'vue';
-import { useRouter } from "vue-router";
 import router from '@/router';
 import { useAuthStore } from '@/store/auth';
 
@@ -50,9 +50,10 @@ function login() {
         console.log(`logged in user: \n${JSON.stringify(response.data, null, 2)}`);
         console.warn("TODO: login");
         loginError.value = null;
+        router.push('/');
     }).catch((error) => {
         console.error(error);
-        let errorMessage = error?.message ?? "No response from server";
+        let errorMessage = error?.response?.data ?? "No response from server";
         loginError.value = errorMessage;
         console.error('Failed to login: ' + errorMessage);
     });

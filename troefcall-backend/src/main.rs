@@ -30,7 +30,6 @@ fn rocket() -> _ {
     rocket::build()
         //mount endpoints
         .mount("/login", routes![
-            login::testadmin, 
             login::login, 
             login::logout, 
             login::register, 
