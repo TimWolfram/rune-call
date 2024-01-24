@@ -6,22 +6,17 @@
             rounded="lg"
             @click="handleClick(room.id)"> 
     <v-card-title>
-      {{ getRoomDisplayName(room.name) }}
+      <div class="d-flex justify-space-between"> 
+        {{ getRoomDisplayName(room.name) }}
+        <v-spacer/>
+        <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon>
+        <v-icon v-else><br/>mdi-lock-open-outline</v-icon>
+      </div>
     </v-card-title> 
     <v-divider/>
     <v-card-text>
-      <v-row>
-        <v-col>
-          
-          Host: {{ getHostName(room.host_id) }}
-          <br/>
-          Players: {{ getActivePlayersCount(room.players) }}/4
-        </v-col>
-        <v-col>
-          <v-icon v-if="room.password !== ''"><br/>mdi-lock</v-icon>
-          <v-icon v-else><br/>mdi-lock-open-outline</v-icon>
-        </v-col>
-      </v-row>
+      Host: {{ getHostName(room.host_id) }}<br/>
+      Players: {{ getActivePlayersCount(room.players) }}/4
     </v-card-text>
   </v-card>
 </template>

@@ -71,10 +71,10 @@ impl LoginToken {
     
     /// Remove the JWT from the cookies, effectively logging the user out
     pub fn remove_cookie(cookies: &CookieJar<'_>) {
+        cookies.add_private(Cookie::build(COOKIE_NAME, "")
+            .same_site(SameSite::None)
+            // .secure(true) //HTTPS only
+            .finish());
         cookies.remove_private(Cookie::named(COOKIE_NAME));
-        // cookies.add_private(Cookie::build(COOKIE_NAME, "")
-        //     .same_site(SameSite::None)
-        //     // .secure(true) //HTTPS only
-        //     .finish());
     }
 }

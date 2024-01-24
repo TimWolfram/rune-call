@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 // controller for rooms; endpoints & logic
 use crate::model::game::{CreateRoomForm, Player, Room};
 use crate::model::login::{LoginToken, Role, LoginForm};
@@ -25,28 +27,21 @@ impl Room {
     }
 } 
 
-#[get("/page/<page>", format = "json", rank = 1)] //without rank = 1 the compiler complains about ambiguous routes between this (GET /rooms/page/<page>) and game (GET /rooms/<room_id>/game).. not sure why (bug in rocket crate?)
-pub async fn get_rooms_paged(room_repo: &State<RoomRepository>, page: usize) -> Json<Vec<Room>> {
+#[get("/page/<page>?<public>", rank=1)] //without rank = 1 the compiler complains about ambiguous routes between this (GET /rooms/page/<page>) and game (GET /rooms/<room_id>/game).. not sure why (bug in rocket crate?)
+pub async fn get_rooms_paged(room_repo: &State<RoomRepository>, page: usize, public: bool) -> Json<(usize, Vec<Room>)> {
     const PAGE_SIZE: usize = 10;
     let start = page * PAGE_SIZE;
-    Json(room_repo.get_rooms_paged(start, PAGE_SIZE).await)
-}
-
-#[get("/page/<page>?public=true", format = "json")]
-pub async fn get_rooms_public_paged(room_repo: &State<RoomRepository>, page: usize) 
--> Json<Vec<Room>> {
-    const PAGE_SIZE: usize = 10;
-    let start = page * PAGE_SIZE;
-    Json(room_repo.get_rooms_public_paged(start, PAGE_SIZE).await)
+    println!("Getting rooms from {} to {} (public: {})", start, start+PAGE_SIZE, public);
+    Json(room_repo.get_rooms_paged(start, PAGE_SIZE, public).await)
 }
 
 #[get("/<id>", format = "json")]
 pub async fn get_room(id: usize, room_repo: &State<RoomRepository>) 
--> Option<Json<Room>> {
+-> Result<Json<Room>, Status> {
     if let Ok(room) = room_repo.get_room_by_id(id).await {
-        return Some(Json(room.clone()));
+        return Ok(Json(room.clone()));
     }
-    None
+    Err(Status::Gone)
 }
 
 #[post("/", data = "<create_room_form>", format = "json")]
@@ -71,10 +66,10 @@ pub async fn create_room<'a>(
     Ok(Json(room))
 }
 
-#[put("/<room_id>/host/players", data = "<swap>", format = "json")]
+#[put("/<room_id>/host?<from>&<to>", format = "json")]
 pub async fn swap_player_seats<'a> (
-    swap: Json<(usize, usize)>,
     room_id: usize,
+    from: usize, to: usize,
     room_repo: &'a State<RoomRepository>,
     cookies: &'a CookieJar<'a>)
 -> Result<Json<Room>, Error<'a>> {
@@ -82,8 +77,7 @@ pub async fn swap_player_seats<'a> (
     let host_user_id: usize = LoginToken::refresh_jwt(cookies)?;
     let mut room: Room = room_repo.get_room_by_id(room_id).await?;
     if room.host_id != host_user_id { return Err((Status::Unauthorized, "Only the host can swap player seats!")); }
-    let swap: (usize, usize) = swap.into_inner();
-    room.swap_player_seats(swap.0, swap.1);
+    room.swap_player_seats(from, to);
     Ok(Json(room.clone()))
 }
 
@@ -114,30 +108,32 @@ pub async fn delete_room<'a>(
     Ok(())
 }
 
-#[post("/<room_id>/players/<player_index>", data = "<player>", format = "json")]
+#[post("/<room_id>/players/<player_index>")]
 pub async fn join_room<'a>(
     room_id: usize,
+    player_index: usize,
     user_repo: &'a State<UserRepository>,
     room_repo: &'a State<RoomRepository>,
-    player_index: usize,
-    player: Option<Json<LoginForm<'_>>>,
     cookies: &'a CookieJar<'a> ) 
 -> Result<Json<Room>, Error<'a>> {
-    let user_id = LoginToken::refresh_jwt(cookies).unwrap();
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     let mut user = user_repo.get(user_id).await?;
-    if user.role == Role::Admin {
-        if let Some(player) = player {
-            // admin can join as any other user
-            user = user_repo.get_by_username(player.username).await?;
+    if let Some(current_room) = user.current_room {
+        if current_room != room_id {
+            return Err((Status::Conflict, "User is already in a room! Leave the room before joining another one!"));
         }
-    }
-    if user.current_room.is_some() {
-        return Err((Status::Conflict, "User is already in a room! Leave the room before joining another one!"));
-    }
+        return Err((Status::Conflict, "Cannot join: user is already in this room!"));
+    };
     user.current_room = Some(room_id);
     let player = Player::from(&user);
     let room = &mut room_repo.get_room_by_id(room_id).await?;
     room.add_player(player, player_index)?;
+    if !user_repo.update(user).await {
+        return Err((Status::InternalServerError, "Failed to update user!"));
+    }
+    if !room_repo.update_room(room.clone()).await {
+        return Err((Status::InternalServerError, "Failed to update room!"));
+    }
     Ok(Json(room.clone()))
 }
 
@@ -159,7 +155,7 @@ pub async fn join_room<'a>(
 //     Err("User is not in room!")
 // }
 
-#[delete("/<room_id>/players", format = "json")]
+#[delete("/<room_id>/players")]
 pub async fn leave_room<'a>(
     room_id: usize,
     user_repo: &'a State<UserRepository>,
@@ -168,7 +164,7 @@ pub async fn leave_room<'a>(
     cookies: &CookieJar<'a>) 
 -> Result<(), Error<'a>> {
     let user_id = LoginToken::refresh_jwt(cookies).unwrap();
-    let user = user_repo.get(user_id).await?;
+    let mut user = user_repo.get(user_id).await?;
     if user.current_room != Some(room_id) {
         return Err((Status::Unauthorized, "User is not in room!"));
     }
@@ -182,6 +178,11 @@ pub async fn leave_room<'a>(
     
     let mut room = room_repo.get_room_by_id(room_id).await?;
     let mut host_found = false;
+    user.current_room = None;
+    if !user_repo.update(user).await {
+        return Err((Status::InternalServerError, "Failed to update user!"));
+    }
+
     // check if user is host
     if room_repo.user_is_host(user_id, room_id).await {
         // if user is host, transfer ownership to another player
@@ -210,6 +211,8 @@ pub async fn leave_room<'a>(
             }
         }
     }
-    room_repo.update_room(room).await;
+    if(!room_repo.update_room(room).await){
+        return Err((Status::InternalServerError, "Failed to update room!"));
+    }
     return Ok(());
 }

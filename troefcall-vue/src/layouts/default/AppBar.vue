@@ -1,12 +1,14 @@
 <template>
   <v-app-bar flat>
-    
+
     <!-- title -->
-    <v-app-bar-title>
-      <v-icon icon="mdi-cards" /> Tjall
-    </v-app-bar-title>
-    
-    <v-spacer></v-spacer>
+    <v-btn variant="plain" to="/">
+      <v-app-bar-title>
+        <v-icon icon="mdi-cards" /> Tjall
+      </v-app-bar-title>
+    </v-btn>
+
+    <v-spacer/>
 
     <!-- settings button -->
     <v-btn icon @click="settingsDrawer = !settingsDrawer">
@@ -14,68 +16,69 @@
     </v-btn>
 
   </v-app-bar>
-  
+
   <!-- Settings drawer -->
   <v-navigation-drawer v-model="settingsDrawer" location="right" temporary>
-    <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme" class="ml-3"/>
-    
-    <div v-if="!auth.loggedIn">
-      <v-btn label="Log in" to="login"/>
-    </div>
-    <div v-else>
-    <v-btn label="Log out" @click="auth.logOut"/>
-      <v-text-field v-model="displayName" label="Display Name"/>
-      <v-btn label="Save Display Name" @click="saveDisplayName"/>
-    </div>
+    <v-container>
+      <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme" />
+      <div v-if="!auth.loggedIn">
+        <v-btn size="large" text="Log in" block to="/login" />
+      </div>
+      <div v-else>
+        <v-text-field v-model="displayName" label="Display Name" :rules="displayNameRules" />
+        <v-btn size="large" class="pa-3" block color="success" text="Save Display Name" @click="saveDisplayName" />
+        <br/> <br/>
+        <v-btn size="large" class="pa-3" block color="error" text="Log out" @click="auth.logout" />
+      </div>
+    </v-container>
   </v-navigation-drawer>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useTheme } from 'vuetify'
+import { useAuthStore } from '@/store/auth';
+import { usePreferencesStore } from '@/store/preferences';
 
-  import { ref, onMounted } from 'vue';
-  import { useTheme } from 'vuetify'
-  import { useAuthStore } from '@/store/auth';
-  import { usePreferencesStore } from '@/store/preferences';
+const settingsDrawer = ref(false);
+const lightMode = ref(false);
+const displayName = ref('');
+const displayNameRules = [
+  v => (v && v.length <= 20) || 'Display name must be at most 20 characters',
+];
 
+const prefStore = usePreferencesStore();
+let auth = useAuthStore();
+const theme = useTheme()
 
-  let settingsDrawer = ref(false);
-  let lightMode = ref(false);
+onMounted(() => {
+  applyCurrentTheme();
+  auth = useAuthStore();
+  displayName.value = auth.getDisplayName;
+  console.log('Mounted app bar for user: ' + displayName.value);
+});
 
-  let displayName = ref('');
-  let prefStore = usePreferencesStore();
-  let auth = useAuthStore();
-  
-  onMounted(() => {
-    applyCurrentTheme();
-    displayName.value = auth.getDisplayName;
-  });
+function toggleTheme() {
+  const newLigntMode = lightMode.value;
+  prefStore.setLightmodePreference(newLigntMode);
+  applyTheme(newLigntMode);
+}
 
+function applyCurrentTheme() {
+  const LIGHTMODEPREF = prefStore.getLightmodePreference;
+  lightMode.value = LIGHTMODEPREF;
+  applyTheme(LIGHTMODEPREF);
+}
 
-  const theme = useTheme()
+function applyTheme(LightModePref) {
+  const CURRENTTHEMENAME = LightModePref ? 'light' : 'dark';
+  console.log('Applying theme: ' + CURRENTTHEMENAME);
+  theme.global.name.value = CURRENTTHEMENAME;
+}
 
-  function toggleTheme() {
-    const NEWLIGHTMODEPREF = !prefStore.getLightmodePreference;
-    prefStore.setLightmodePreference(NEWLIGHTMODEPREF);
-    console.log('Setting theme to ' + (NEWLIGHTMODEPREF ? 'light' : 'dark'));
-    applyTheme(NEWLIGHTMODEPREF);
-    lightMode.value = NEWLIGHTMODEPREF;
-  }
-
-  function applyCurrentTheme () {
-    const LIGHTMODEPREF = prefStore.getLightmodePreference;
-    applyTheme(LIGHTMODEPREF);
-    lightMode.value = LIGHTMODEPREF;
-  }
-
-  function applyTheme (LightModePref) {
-    const CURRENTTHEMENAME = LightModePref ? 'light' : 'dark';
-    console.log('Current theme: ' + CURRENTTHEMENAME);
-    theme.global.name.value = CURRENTTHEMENAME;
-  }
-
-  function saveDisplayName() {
-    auth.setDisplayName(displayName.value);
-    console.log('Saved display name as: ' + displayName.value);
-  }
+function saveDisplayName() {
+  auth.setDisplayName(displayName.value);
+  console.log('Saved display name as: ' + displayName.value);
+}
 
 </script>

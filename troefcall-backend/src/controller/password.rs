@@ -6,6 +6,7 @@ pub fn hash_password<'a>(password: &str) -> Result<String, Error<'a>> {
 }
 
 pub fn verify_password<'a>(password: &'a str, hashed: &'a str) -> Result<(), Error<'a>> {
+    println!("Verifying password: {} with hash: {}", password, hashed);
     let valid = verify(password, hashed).or(Err((Status::InternalServerError, "Error while verifying password!")))?;
     if !valid {
         return Err((Status::Unauthorized, "Incorrect password!"));

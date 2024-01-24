@@ -12,7 +12,7 @@ export const usePreferencesStore = defineStore({
         }
     },
     actions: {
-        setLightModePreference(lightMode) {
+        setLightmodePreference(lightMode) {
             localStorage.setItem(LIGHTMODE, lightMode);
         }
     },

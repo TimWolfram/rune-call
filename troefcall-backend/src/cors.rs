@@ -17,9 +17,16 @@ impl Fairing for CORS {
     }
     
     async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
+        let res = response.status();
+        println!("Host: {:?}, Origin: {:?}, Path: {:?}\nResponse: {:?}",
+            request.headers().get_one("Host"),
+            request.headers().get_one("Origin"),
+            request.uri().path(),
+            res.to_string()
+        );
         response.set_header(Header::new("Access-Control-Allow-Origin", "http://localhost:3000"));
-        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, PATCH, OPTIONS, DELETE"));
-        response.set_header(Header::new("Access-Control-Allow-Headers", "Content-Type, Authorization"));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, OPTIONS, DELETE"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "Content-Type, Authorization, Cache-Control"));
         response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
         if request.method() == Method::Options {
             response.set_status(Status::Ok);

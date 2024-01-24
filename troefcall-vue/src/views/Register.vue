@@ -71,10 +71,8 @@ function register() {
     auth.register(username.value, password.value)
     .then(response => {
         console.log('Register response: ' + JSON.stringify(response.data));
-
-        console.warn("TODO: login after register");
         //go back
-        router.back();
+        router.push('/');
     }).catch(error => {
         console.error('Failed to register: ' + JSON.stringify(error.response.data));
     });

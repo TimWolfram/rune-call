@@ -14,18 +14,21 @@ use rocket::{response::Redirect, http::Status};
 #[macro_use]
 extern crate rocket;
 
-const CREATE_TEST_DATA: bool = false;
+const CREATE_TEST_DATA: bool = true;
 
 #[launch]
 /// Launches the rocket server
-fn rocket() -> _ {
-    //create user repository
-    let user_repo = 
-        if CREATE_TEST_DATA {UserRepository::test_repo()}
-        else {UserRepository::default()};
+async fn rocket() -> _ {
+    //create repositories
+    let mut user_repo = match CREATE_TEST_DATA {
+            true => UserRepository::test_repo(),
+            false => UserRepository::default(),
+        };
     let room_repo = 
-        if CREATE_TEST_DATA{RoomRepository::test_repo(user_repo.clone())}
+        if CREATE_TEST_DATA{RoomRepository::test_repo(&mut user_repo)}
         else {RoomRepository::default()};
+    //print users
+    println!("Users: {}", rocket::serde::json::to_string(&user_repo.users.get_mut()).unwrap());
 
     rocket::build()
         //mount endpoints
@@ -33,12 +36,11 @@ fn rocket() -> _ {
             login::login, 
             login::logout, 
             login::register, 
+            login::change_nickname,
             login::delete_user])
         .mount("/rooms", routes![
             //rooms
             rooms::get_rooms_paged,
-            rooms::get_rooms_public_paged,
-
             rooms::get_room,
             rooms::create_room,
             rooms::delete_room,

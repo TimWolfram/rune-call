@@ -26,6 +26,11 @@
                         Don't have an account yet? 
                         <router-link to="register">Register new account</router-link>
                     </v-card-text>
+                    <v-alert v-if="auth.loggedIn" type="success">
+                        <p>
+                            You are logged in as {{ auth.getDisplayName }}. Redirecting to home ... (or <router-link to="/">click here</router-link>)
+                        </p>    
+                    </v-alert>
                 </v-card>
             </v-col>
         </v-row>
@@ -47,9 +52,8 @@ function login() {
     console.log('Login:\n\tUsername:' + username.value + '\n\tPassword:' + password.value);
     auth.login(username.value, password.value)
     .then((response) => {
-        console.log(`logged in user: \n${JSON.stringify(response.data, null, 2)}`);
-        console.warn("TODO: login");
         loginError.value = null;
+        //redirect to home
         router.push('/');
     }).catch((error) => {
         console.error(error);

@@ -98,10 +98,9 @@ impl Game {
     /// Check if game is in progress.
     /// Returns true if game state is not `Finished`.
     pub fn is_in_progress(&self) -> bool {
-        if let GameState::Finished { .. } = self.game_state {
-            false
-        } else {
-            true
+        match self.game_state {
+            GameState::Finished { .. } => false,
+            _ => true,
         }
     }
 
@@ -250,11 +249,11 @@ pub async fn play_card<'a>(
                     Some(player_turn)
                 }
                 _ => {
-                            // user is not admin; check if they are current player
-                            room.players.iter().position(|room_player| {
-                                room_player.as_ref().map_or(false, |p| p.user_id == user_id)
-                            })
-                        }
+                    // user is not admin; check if they are current player
+                    room.players.iter().position(|room_player| {
+                        room_player.as_ref().map_or(false, |p| p.user_id == user_id)
+                    })
+                }
             }.ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
             if index != player_turn {
                 return Err((Status::BadRequest, "It is not your turn!"));
@@ -304,7 +303,11 @@ pub async fn forfeit<'a> (
     let game = forfeit_player(game_repo, room_id, user_id).await?;
     Ok(Json(game))
 }
-pub async fn forfeit_player<'a> (game_repo: &'a State<GameRepository>, room_id: RoomId, user_id: UserId) -> Result<Game, Error<'a>>{
+pub async fn forfeit_player<'a> (
+    game_repo: &'a State<GameRepository>, 
+    room_id: RoomId,
+    user_id: UserId
+) -> Result<Game, Error<'a>>{
     let mut game = game_repo
         .get_game_from_room(room_id)
         .await?;

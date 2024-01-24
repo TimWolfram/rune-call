@@ -37,7 +37,7 @@ const routes = [
         component: () => import('@/views/Rooms.vue'),
       },
       {
-        path: 'rooms/createroom',
+        path: '/rooms/create',
         name: 'CreateRoom',
         component: () => import('@/components/troefcall/room/CreateRoom.vue'),
       },
@@ -45,7 +45,7 @@ const routes = [
         path: '/rooms/:id',
         name: 'Room',
         component: () => import('@/components/troefcall/room/RoomLobby.vue'),
-        props: route => ({ id: Number(route.params.id) }),
+        props: route => ({ roomId: Number(route.params.id) }),
       },
     ],
   },

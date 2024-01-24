@@ -32,6 +32,7 @@ impl Default for UserRepository {
         }
     }
 }
+
 impl Clone for UserRepository {
     fn clone(&self) -> Self {
         UserRepository {
@@ -44,15 +45,17 @@ impl Clone for UserRepository {
 
 impl UserRepository{
     pub fn test_repo() -> Self {
-        let test_user_amt = 15;
+        //get test user amt from environment variable
+        let test_user_amt = match std::env::var("TEST_USER_AMT") 
+            {Ok(s) => s.parse::<usize>().unwrap_or(100), Err(_) => 100};
 
-        println!("Creating user repository with test data.");
+        println!("Creating user repository with test data.({} users)", test_user_amt);
         // admin user
         let admin_user:(UserId, User) = (0, User {
                 id: 0, 
                 username: "admin".to_string(),
                 password_hash: password::hash_password("adminpw!").unwrap(),
-                nickname: "👍Admin👍".to_string(),
+                 nickname: "👍Admin👍".to_string(),
                 role: Role::Admin,
                 current_room: None,
             });
@@ -61,17 +64,22 @@ impl UserRepository{
         let mut users = HashMap::from([admin_user]);
         let mut usernames: HashMap<String, UserId> = HashMap::from([admin_user_nametuple]);
 
+        let password_hash = password::hash_password("userpw!").unwrap();
         for i in 1..test_user_amt {
-            let user = User::new(
+            let username = format!("user{}", i);
+            let nickname = format!("User {}", i);
+
+            usernames.insert(username.clone(), i);
+            users.insert(i, User::new(
                 i,
-                format!("user{}", i),
-                password::hash_password("userpw!").unwrap(),
-                format!("User {}", i),
-                Role::Admin
-            );
-            usernames.insert(user.username.clone(), i);
-            users.insert(i, user);
+                username,
+                password_hash.clone(),
+                nickname,
+                Role::Player
+            ));
         }
+        let user_string = users.iter().map(|(_, user)| user.username.clone()).collect::<Vec<String>>().join("\n\t");
+        println!("Created test users:\n\t{}", user_string);
         UserRepository {
             users: Mutex::new(users),
             usernames: Mutex::new(usernames),
@@ -126,5 +134,11 @@ impl UserRepository {
                 }
             }
         });
+    }
+    pub async fn change_nickname(&self, user_id: UserId, nickname: String) -> Result<(), Error<'static>> {
+        let mut users = self.users.lock().await;
+        let user = users.get_mut(&user_id).ok_or((Status::Unauthorized, "User does not exist!"))?;
+        user.nickname = nickname;
+        Ok(())
     }
 }

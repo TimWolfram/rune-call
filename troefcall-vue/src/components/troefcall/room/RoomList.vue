@@ -2,7 +2,7 @@
     <div v-if="rooms.length === 0">
       <p>No rooms available! Create a new room or try again later.</p>
       <!-- link to room create screen -->
-      <router-link to="createroom">Create a new room</router-link>
+      <router-link to="rooms/create">Create a new room</router-link>
     </div>
     <v-container v-else 
     class="d-flex flex-wrap"

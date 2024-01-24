@@ -27,19 +27,38 @@ impl Default for RoomRepository {
     }
 }
 impl RoomRepository{
-    pub fn test_repo(user_repo: UserRepository) -> Self {
+    pub fn test_repo(user_repo: &mut UserRepository) -> Self {
+        println!("Creating room repository with test data.");
         let mut room_amt: usize = 30;
-        let users:HashMap<usize, User> = user_repo.users.into_inner();
+        let users = user_repo.users.get_mut();
         if users.len() < room_amt {
-            println!("Not enough users in user repo to create test {room_amt} rooms!");
-            room_amt = users.len();
+            let users_amt = users.len();
+            println!("Not enough users in user repo to create test {room_amt} rooms! ({users_amt} users in user repo)");
+            room_amt = users_amt;
         }
-        let rooms_map = HashMap::from([
-            (0, Room::new(0, "Room 0 with a super long name for some reason, good luck displaying this properly".to_string(), "asdf".to_string(), users.get(&0).unwrap()))
+        let password = password::hash_password("asdf").unwrap_or_else(|_| "".to_string());
+        const ADMIN_ID:usize = 0;
+        const ROOM_ID:usize = 0;    //just for clarity
+        let mut rooms_map = HashMap::from([
+            (ADMIN_ID, Room::new(ROOM_ID, "Room 0 with a super long name for some reason, good luck displaying this properly".to_string(),
+                password,
+                users.get(&ADMIN_ID).unwrap()) )
         ]);
-        let hosts_map = HashMap::from([
+        let mut hosts_map = HashMap::from([
             (0, 0),
         ]);
+        users.get_mut(&ADMIN_ID).unwrap().current_room = Some(0);
+        //create test rooms
+        for i in 1..room_amt {
+            let room_id = i;
+            let room_name = format!("Room {}", i);
+            let host_user = users.get(&i).unwrap();
+            println!("Creating room {} with host {}", room_name, host_user.username);
+            let room = Room::new(room_id, room_name, "".to_string(), host_user);
+            rooms_map.insert(room_id, room);
+            hosts_map.insert(i, room_id);
+            users.get_mut(&i).unwrap().current_room = Some(room_id);
+        }
         RoomRepository {
             rooms: Mutex::new(rooms_map),
             room_count: AtomicUsize::new(100),
@@ -55,24 +74,19 @@ impl RoomRepository {
     pub async fn get_rooms_count(&self) -> usize {
         self.rooms.lock().await.len()
     }
+    
     /// Returns a vector of all rooms in the repository, sorted by id. Uses pagination.
-    pub async fn get_rooms_paged(&self, start: usize, count: usize) -> Vec<Room> {
+    pub async fn get_rooms_paged(&self, start: usize, count: usize, only_public: bool) -> (usize, Vec<Room>) {
         let mut rooms = self.rooms.lock().await.values()
-            .filter(|room| room.game_in_progress == false)
+            .filter( |room| room.game_in_progress == false
+                & (only_public == false || room.password.len() == 0) )
             .cloned()
             .collect::<Vec<Room>>();
         rooms.sort_by_key(|room| room.id);
-        rooms.iter().skip(start).take(count).cloned().collect()
+        let page_amt = (rooms.len()+count-1) / count;
+        (page_amt, rooms.iter().skip(start).take(count).cloned().collect())
     }
-    /// Returns a vector of all public rooms in the repository, sorted by id. Uses pagination.
-    pub async fn get_rooms_public_paged(&self, start: usize, count: usize) -> Vec<Room> {
-        let mut rooms = self.rooms.lock().await.values()
-            .filter(|room| room.game_in_progress == false & (room.password.len() == 0))
-            .cloned()
-            .collect::<Vec<Room>>();
-        rooms.sort_by_key(|room| room.id);
-        rooms.iter().skip(start).take(count).cloned().collect()
-    }
+
     // pub async fn get_room_by_host(&self, host_user_id: UserId) -> Result<Room, &'static str> {
     //     let hosts = self.hosts.lock().await;
     //     let room_id = hosts.get(&host_user_id).cloned()
@@ -81,18 +95,21 @@ impl RoomRepository {
     //     rooms.get(&room_id).cloned()
     //         .ok_or("Room no longer exists!")
     // }
+    
     /// Returns whether the user with the given `user_id` is hosting the room with the given `room_id`.
     pub async fn user_is_host<'a> (&self, user_id: usize, room_id: RoomId) -> bool {
         let hosts = self.hosts.lock().await;
         hosts.get(&user_id) == Some(&room_id)
     }
+
     pub async fn get_room_by_id<'a> (&self, room_id: RoomId) -> Result<Room, Error> {
         let rooms = self.rooms.lock().await;
-        rooms.get(&room_id).cloned().ok_or((Status::Unauthorized, "Game not found!"))
+        rooms.get(&room_id).cloned().ok_or((Status::Gone, "Room not found!"))
     }
+
     pub async fn create_room<'a> (&self, host_user: &mut User, name: String, password: String) -> Result<Room, Error<'a>> {
         if host_user.current_room.is_some() {
-            return Err((Status::Unauthorized, "User is already in a room! Leave the room before creating a new one!"));
+            return Err((Status::Conflict, "User is already in a room! Leave the room before creating a new one!"));
         }
         if name.len() < 3 { // check if name is valid
             return Err((Status::BadRequest, "Room name must be at least 3 characters long!"));
@@ -120,6 +137,7 @@ impl RoomRepository {
         host_user.current_room = Some(new_room.id.clone());
         Ok(new_room)
     }
+
     pub async fn update_room(&self, room: Room) -> bool {
         let mut rooms = self.rooms.lock().await;
         if rooms.contains_key(&room.id) {
@@ -129,6 +147,7 @@ impl RoomRepository {
             false
         }
     }
+
     /// This function transfers the host of a room from one user to another.
     /// The user with the given `from_user_id` is removed as a host of the room,
     /// and the user with the given `to_user_id` is added as a host of the room.
@@ -137,15 +156,17 @@ impl RoomRepository {
     /// a host of the room. 
     pub async fn transfer_host(&self, from_user_id: UserId, to_user_id: UserId) -> bool {
         let mut hosts = self.hosts.lock().await;
-        let room_id = hosts.get(&from_user_id).cloned();
-        match room_id {
-            None => false,
-            Some(room_id) => {
-                hosts.remove(&from_user_id);
-                hosts.insert(to_user_id, room_id);
-                true
-            }
+        // check if user is hosting a room        
+        if hosts.contains_key(&to_user_id) {
+            return false;
         }
+        let room_id = hosts.get(&from_user_id).cloned();
+        let Some(room_id) = room_id else {
+            return false;
+        };
+        hosts.remove(&from_user_id);
+        hosts.insert(to_user_id, room_id);
+        true
     }
     pub async fn delete_room(&self, room_id: &RoomId) -> Option<Room> {
         let room = self.rooms.lock().await.remove(room_id)?;
