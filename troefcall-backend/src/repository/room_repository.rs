@@ -3,6 +3,7 @@ use rocket::http::ext::IntoCollection;
 use rocket::tokio::sync::Mutex;
 
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::sync::atomic::AtomicUsize;
 
 type RoomId = usize;
@@ -10,7 +11,7 @@ type Map<K, V> = Mutex<HashMap<K, V>>;
 type Error<'a> = (Status, &'a str);
 
 use crate::controller::password;
-use crate::model::game::Room;
+use crate::model::game::{Room, Player};
 pub struct RoomRepository {
     rooms: Map<RoomId, Room>, //stores rooms by room id
     hosts: Map<UserId, RoomId>, //stores room ids by host user id
@@ -31,18 +32,27 @@ impl RoomRepository{
         println!("Creating room repository with test data.");
         let mut room_amt: usize = 30;
         let users = user_repo.users.get_mut();
-        if users.len() < room_amt {
+        if users.len() - 4 < room_amt {
             let users_amt = users.len();
             println!("Not enough users in user repo to create test {room_amt} rooms! ({users_amt} users in user repo)");
-            room_amt = users_amt;
+            room_amt = users_amt - 4;
         }
         let password = password::hash_password("asdf").unwrap_or_else(|_| "".to_string());
+
         const ADMIN_ID:usize = 0;
         const ROOM_ID:usize = 0;    //just for clarity
-        let mut rooms_map = HashMap::from([
-            (ADMIN_ID, Room::new(ROOM_ID, "Room 0 with a super long name for some reason, good luck displaying this properly".to_string(),
+        let mut admin_room = Room::new(ROOM_ID, "Room 0 with a super long name for some reason, good luck displaying this properly".to_string(),
                 password,
-                users.get(&ADMIN_ID).unwrap()) )
+                users.get(&ADMIN_ID).unwrap());
+        for i in 1..4 {
+            //add 3 players to admin room
+            let user = users.get_mut(&(users.len() - i )).unwrap();
+            user.current_room = Some(ROOM_ID);
+            let player = Player::from(&user.clone());
+            let _ = admin_room.add_player(player, i);
+        }
+        let mut rooms_map = HashMap::from([
+            (ADMIN_ID, admin_room )
         ]);
         let mut hosts_map = HashMap::from([
             (0, 0),

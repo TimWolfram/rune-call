@@ -67,7 +67,7 @@
       },
     },
     async mounted() {
-      if (this.auth.isInRoom) {
+      if (this.auth.isInAnyRoom) {
         this.roomId = this.auth.getRoomId;
         console.log("User is already in room:" + this.roomId);
       }

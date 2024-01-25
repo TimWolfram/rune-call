@@ -1,17 +1,17 @@
 <template>
   <v-card>
-    <v-container v-if="getRoomDataError === null">
+    <v-container v-if="roomDataError === null">
       <v-alert type="info">Loading...</v-alert>
     </v-container>
 
-    <v-container v-else-if="getRoomDataError === true">
+    <v-container v-else-if="roomDataError === true">
       <v-alert type="error">Could not reach server; try again later!</v-alert>
     </v-container>
 
-    <v-container v-else-if="getRoomDataError === 'gone'">
+    <v-container v-else-if="roomDataError === 'gone'">
       <v-alert type="error">This room is gone!</v-alert>
     </v-container>
-    <v-container v-else-if="getRoomDataError === 'NaN'">
+    <v-container v-else-if="roomDataError === 'NaN'">
       <v-alert type="error">Room id is not a number!</v-alert>
     </v-container>
 
@@ -46,13 +46,13 @@
 </template>
   
 <script setup>
-  import { onMounted } from 'vue';
+  import { onMounted, onBeforeUnmount } from 'vue';
   import { ref } from 'vue';
   import { useRouter } from 'vue-router';
   import { get, post, del } from '@/requests';
   import user from '@/components/troefcall/room/RoomUser.vue';
   import { useAuthStore } from '@/store/auth';
-
+  import { LOBBY_REFRESH_INTERVAL } from '@/store/preferences';
   const props = defineProps({
     roomId: {
       type: Number,
@@ -66,37 +66,53 @@
   //   { name: 'User 2' },
   //   null,
   // ]);
-  const getRoomDataError = ref(null);
+  const roomDataError = ref(null);
   const room = ref(null);
   const auth = useAuthStore();
   const router = useRouter();
 
+  let refresher = null;
+  
   onMounted(() => {
     console.log('Mounted room lobby');
     //check if room id is a number
     if (isNaN(props.roomId)) {
       console.error('Room id is not a number: ' + props.roomId);
-      getRoomDataError.value = "NaN";
+      roomDataError.value = "NaN";
       return;
     }
-    getRoomData();
+    refresher = setInterval(refresh, LOBBY_REFRESH_INTERVAL);
+    refresh();
   });
+  onBeforeUnmount(() => {
+    console.log('Unmounted room lobby');
+    clearInterval(refresher);
+  });
+
+  function refresh(){
+    getRoomData();
+    //redirect if game is in progress
+    if(room?.value?.game_in_progress){
+      console.log('Game is in progress, redirecting to game');
+      router.push('/rooms/' + props.roomId + '/game');
+    }
+  }
   
   function getRoomData(){
     get('rooms/' + props.roomId)
     .then(response => {
       console.log('Room data: ' + JSON.stringify(response.data));
       room.value = response.data;
-      getRoomDataError.value = false;
+      roomDataError.value = false;
     }).catch(error => {
       //check if 410 (gone)
       if(error.response.status === 410){
         console.log('Room ' + props.roomId + ' is gone');
-        getRoomDataError.value = "gone";
+        roomDataError.value = "gone";
         return;
       }
       console.error('Failed to fetch room data: ' + error);
-      getRoomDataError.value = true;
+      roomDataError.value = true;
     });
   }
 
@@ -131,7 +147,13 @@
   }
 
   function startGame() {
-    console.warn('TODO: Start game');
+    post('rooms/' + props.roomId + '/game')
+      .then(response => {
+        console.log('Started game: ' + JSON.stringify(response.data));
+        router.push('/rooms/' + props.roomId + '/game');
+      }).catch(error => {
+        console.error('Failed to start game: ' + error.response.data);
+      });
   }
   function canStart() {
     if(!isHost()){

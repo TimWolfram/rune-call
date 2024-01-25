@@ -38,7 +38,7 @@ impl Game {
         let starting_player = match last_game {
             None => StartingPlayer::Random, //pick random starting player
             Some(game) => {
-                let GameState::Finished { winners, reason: _ } = game.game_state else {
+                let GameState::Finished { winners, reason: _ } = game.state else {
                     return Err((Status::BadRequest, "Last game is not finished!"));
                 };
                 // check if starting player won
@@ -78,7 +78,7 @@ impl Game {
         let game = Game {
             players,
             played_rounds: Vec::new(),
-            game_state: GameState::Starting {
+            state: GameState::Starting {
                 remaining_deck: deck,
             },
         };
@@ -98,7 +98,7 @@ impl Game {
     /// Check if game is in progress.
     /// Returns true if game state is not `Finished`.
     pub fn is_in_progress(&self) -> bool {
-        match self.game_state {
+        match self.state {
             GameState::Finished { .. } => false,
             _ => true,
         }
@@ -107,11 +107,11 @@ impl Game {
     /// Pick a tjall suit aka trump aka "troef".
     /// This starts the game; changing its state from `Starting` to `Playing`.
     pub fn pick_tjall_and_start(&mut self, suit: Suit) -> Result<(), Error<'static>> {
-        let GameState::Starting { remaining_deck: _ } = self.game_state else {
+        let GameState::Starting { remaining_deck: _ } = self.state else {
             return Err((Status::Conflict, "Game is not starting!"));
-        };  
+        };
         
-        self.game_state = GameState::Playing {
+        self.state = GameState::Playing {
             current_round: Round::new(),
             tjall: suit,
         };
@@ -125,7 +125,7 @@ impl Game {
         if !player.current_cards.contains(&card) {
             return Err((Status::Forbidden, "You do not have this card!"));
         }
-        let GameState::Playing { ref mut current_round, tjall } = self.game_state else {
+        let GameState::Playing { ref mut current_round, tjall } = self.state else {
             return Err((Status::Conflict, "Game is not in progress!"));
         };
 
@@ -198,7 +198,7 @@ pub async fn create_game<'a>(
         return Err((Status::Unauthorized, "User is not in room!"));
     }
     // get room
-    let room = room_repo
+    let mut room = room_repo
         .get_room_by_id(room_id)
         .await?;
     
@@ -214,7 +214,9 @@ pub async fn create_game<'a>(
             return Err((Status::BadRequest, "Game already started!"));
         }
     }    
-    let game = game_repo.create_game(room).await?;
+    room.game_in_progress = true;
+    let game = game_repo.create_game(room.clone()).await?;
+    room_repo.update_room(room).await;
 
     Ok(Json(game.clone()))
 }
@@ -239,7 +241,7 @@ pub async fn play_card<'a>(
     let card = card.into_inner();
     let user = user_repo.get(user_id).await?;
 
-    match game.game_state {
+    match game.state {
         GameState::Playing { ref current_round , tjall: _} => {
             // check if it is player's turn (or player is admin)
             let player_turn = current_round.played_cards.len();
@@ -293,7 +295,7 @@ pub async fn play_card<'a>(
     Ok(Json(game.clone()))
 }
 
-#[delete("/<room_id>/game", format = "json")]
+#[delete("/<room_id>/game")]
 pub async fn forfeit<'a> (
     room_id: RoomId,
     game_repo: &'a State<GameRepository>,
@@ -312,7 +314,7 @@ pub async fn forfeit_player<'a> (
         .get_game_from_room(room_id)
         .await?;
     // check if game is already finished
-    if let GameState::Finished { .. } = game.game_state {
+    if let GameState::Finished { .. } = game.state {
         return Err((Status::Conflict, "Game is already finished!"));
     }
     // determine winners based on if index is odd or even
@@ -332,7 +334,7 @@ pub async fn forfeit_player<'a> (
     };
 
     //game is updated instead of actually deleted, because we need to remember last game's winners
-    game.game_state = GameState::Finished {
+    game.state = GameState::Finished {
         winners,
         reason: EndGameReason::Forfeit {
             player: game.players[room_player_index].clone(),
@@ -364,12 +366,7 @@ pub async fn get_cards<'a>(
         .iter()
         .find(|p| p.user_id == user_id)
         .ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
-    let GameState::Playing {current_round, tjall: _, } = game.game_state else {
-        return Err((Status::BadRequest, "Game is not in progress!"));
-    };
-    let round_opening_card = &current_round.played_cards[0];
-    let valid_cards = Game::valid_cards(&player, round_opening_card.suit);
-    Ok(Json(valid_cards))
+    return Ok(Json(player.current_cards.clone()));
 }
 
 #[get("/<room_id>/game/cards/<player_index>")]
@@ -395,7 +392,7 @@ pub async fn get_cards_admin<'a> (
         .await?;
 
     let player = game.players[player_index].clone();
-    let GameState::Playing { current_round, tjall: _, } = game.game_state else {
+    let GameState::Playing { current_round, tjall: _, } = game.state else {
         return Err((Status::Unauthorized, "Game is not in progress!"));
     };
     let round_suit = current_round.played_cards[0].suit;

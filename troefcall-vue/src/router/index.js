@@ -39,14 +39,20 @@ const routes = [
       {
         path: '/rooms/create',
         name: 'CreateRoom',
-        component: () => import('@/components/troefcall/room/CreateRoom.vue'),
+        component: () => import('@/views/CreateRoom.vue'),
       },
       {
         path: '/rooms/:id',
         name: 'Room',
-        component: () => import('@/components/troefcall/room/RoomLobby.vue'),
+        component: () => import('@/views/RoomLobby.vue'),
         props: route => ({ roomId: Number(route.params.id) }),
       },
+      {
+        path: '/rooms/:id/game',
+        name: 'Game',
+        component: () => import('@/views/Game.vue'),
+        props: route => ({ roomId: Number(route.params.id) }),
+      }
     ],
   },
 ]

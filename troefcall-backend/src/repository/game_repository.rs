@@ -30,7 +30,7 @@ impl GameRepository{
     pub async fn get_game_from_room(&self, room_id: usize) -> Result<Game, Error> {
         self.games.lock().await
             .get(&room_id).cloned()
-            .ok_or((Status::Unauthorized, "Game not found!"))
+            .ok_or((Status::Gone, "Game not found!"))
     }
 
     pub async fn update_game(&self, room_id: usize, game: Game) -> () {

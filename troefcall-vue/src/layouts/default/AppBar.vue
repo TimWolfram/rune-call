@@ -20,16 +20,21 @@
   <!-- Settings drawer -->
   <v-navigation-drawer v-model="settingsDrawer" location="right" temporary>
     <v-container>
-      <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme" />
-      <div v-if="!auth.loggedIn">
-        <v-btn size="large" text="Log in" block to="/login" />
-      </div>
-      <div v-else>
-        <v-text-field v-model="displayName" label="Display Name" :rules="displayNameRules" />
-        <v-btn size="large" class="pa-3" block color="success" text="Save Display Name" @click="saveDisplayName" />
-        <br/> <br/>
-        <v-btn size="large" class="pa-3" block color="error" text="Log out" @click="auth.logout" />
-      </div>
+      <v-card class="ma-1 pa-0">
+        <v-switch v-model="lightMode" label="Dark/Light" @update:model-value="toggleTheme" />
+      </v-card>
+      <v-card class="ma-1 pa-1">
+        <div v-if="!auth.loggedIn">
+          <v-btn size="large" text="Log in" block to="/login" />
+        </div>
+        <div v-else>
+          <v-card-text class="text-subtitle-2" v-text="'Hello, ' + auth.getUsername + '!'" label="Username" readonly />
+          <v-text-field v-model="displayName" label="Display Name" :rules="displayNameRules" />
+          <v-btn size="large" class="pa-3" block color="success" text="Save Display Name" @click="saveDisplayName" />
+          <br/>
+          <v-btn size="large" class="pa-3" block color="error" text="Log out" @click="auth.logout" />
+        </div>
+      </v-card>
     </v-container>
   </v-navigation-drawer>
 </template>

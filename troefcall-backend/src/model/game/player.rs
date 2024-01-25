@@ -6,7 +6,7 @@ use super::Card;
 pub struct Player {
     pub user_id: usize,
     pub name: String, //display name in game; not necessarily the same as the username
-    #[serde(skip_serializing)] // Room contains a list of all players, and we do not want to send the cards of other players to the client.
+    #[serde(skip)] // Room contains a list of all players, and we do not want to send the cards of other players to the client.
     pub current_cards: Vec<Card>,
 }
 impl PartialEq for Player {

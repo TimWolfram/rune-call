@@ -45,7 +45,7 @@ export default {
   },
   methods: {
     async update() {
-      let inRoom = await this.auth.isInRoom;
+      let inRoom = await this.auth.isInAnyRoom;
       if (inRoom == true) {
         this.roomId = this.auth.getRoomId;
         console.log("User is already in room:" + this.roomId);

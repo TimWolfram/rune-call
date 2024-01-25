@@ -19,7 +19,7 @@ export const useAuthStore = defineStore({
         confirmedLoggedIn: (state) => {
             //confirms login with backend server
             console.log('Checking confirmedLoggedIn: ' + JSON.stringify(state.user, null, 2));
-            checkLogin(state).then((response) => {
+            state.checkLogin().then((response) => {
                 console.log('confirmedLoggedIn: ' + JSON.stringify(response.data, null, 2));
                 return response.data != null;
             })
@@ -38,7 +38,7 @@ export const useAuthStore = defineStore({
             return state.user?.username;
         },
 
-        isInRoom: async (state) => {
+        isInAnyRoom: async (state) => {
             let inRoom = await state.checkLogin()
                 .then((response) => {
                     console.log('Checked isInRoom: ' + JSON.stringify(response.data, null, 2));
