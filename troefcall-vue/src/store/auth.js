@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { del, get, post, put } from "@/requests";
+import { del, post, put } from "@/requests";
 import Cookies from "js-cookie";
 
 const LOGIN_ENDPOINT = 'login';
@@ -160,7 +160,7 @@ export const useAuthStore = defineStore({
 
 
 function getUserFromLocalStorage() {
-    let u = localStorage.getItem('user')
+    let u = localStorage.getItem('user');
     if (u === null) {
         return null;
     }

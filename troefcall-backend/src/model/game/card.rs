@@ -18,22 +18,26 @@ impl Suit {
         Suit::Clubs, 
         Suit::Diamonds].into_iter()
     }
-    // pub fn to_char(&self) -> char {
-    //     match self {
-    //         Suit::Spades => '♠',
-    //         Suit::Hearts => '♥',
-    //         Suit::Clubs => '♣',
-    //         Suit::Diamonds => '♦',
-    //     }
-    // }
-    // pub fn to_str(&self) -> &'static str {
-    //     match self {
-    //         Suit::Spades => "Spades",
-    //         Suit::Hearts => "Hearts",
-    //         Suit::Clubs => "Clubs",
-    //         Suit::Diamonds => "Diamonds",
-    //     }
-    // }
+    pub fn to_char(&self) -> char {
+        match self {
+            Suit::Spades => '♠',
+            Suit::Hearts => '♥',
+            Suit::Clubs => '♣',
+            Suit::Diamonds => '♦',
+        }
+    }
+}
+impl ToString for Card{
+    fn to_string(&self) -> String {
+        let val = match self.value {
+            11 => "J".to_string(), //yes this is necessary, "foo" is a str, not a String
+            12 => "Q".to_string(),
+            13 => "K".to_string(),
+            14 => "A".to_string(),
+            _ => self.value.to_string(),
+        };
+        return format!("{}{}", self.suit.to_char(), val);
+    }
 }
 impl<'r> rocket::request::FromParam<'r> for Suit {
     type Error = &'static str;

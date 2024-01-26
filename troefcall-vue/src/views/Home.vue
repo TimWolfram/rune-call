@@ -20,9 +20,15 @@
     </p>
     <br/>
     
-    <!-- display create room and browse rooms buttons -->
-    <v-btn block color="primary" size="large" to="rooms/create">Create Room</v-btn> <br/>
-    <v-btn block color="primary" size="large" to="rooms">Browse Rooms</v-btn> <br/>
+    <v-alert v-if="roomId != null">
+      You are already in a room. <br/><v-btn color="success" :to="'rooms/' + roomId">Go to room</v-btn>
+    </v-alert>
+    <div v-else>
+      <!-- display create room and browse rooms buttons -->
+      <v-btn block color="primary" size="large" to="rooms/create">Create Room</v-btn> <br/>
+      <v-btn block color="primary" size="large" to="rooms">Browse Rooms</v-btn> <br/>
+    </div>
+    
     <br/>
     <v-btn block color="error" size="large" @click="auth.logout">Log out</v-btn> <br/>
     
@@ -39,7 +45,13 @@
       return {
         rooms: [],
         page: 0,
-      auth: useAuthStore(),
+        auth: useAuthStore(),
+        roomId: null,
+      }
+    },
+    mounted() {
+      if (this.auth.isInAnyRoom) {
+        this.roomId = this.auth.getRoomId;
       }
     },
   }

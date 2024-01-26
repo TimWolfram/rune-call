@@ -1,4 +1,4 @@
-use crate::model::game::{Card, EndGameReason, Game, GameState, Player, Room, RoomId, Round, Suit};
+use crate::model::game::{Card, EndGameReason, Game, GameState, Player, Room, RoomId, Round, RoundState, Suit};
 use crate::model::login::{LoginToken, Role, UserId};
 use crate::repository::{GameRepository, RoomRepository, UserRepository};
 
@@ -113,19 +113,20 @@ impl Game {
         };
 
         self.state = GameState::Playing {
-            current_round: Round::new(),
+            current_round: Round::new(0),
             tjall: suit,
         };
         Ok(())
     }
 
-    /// Play a card.
+    /// Play a card for the current player.
     pub fn play_card(&mut self, card: Card, index: usize) -> Result<(), Error<'static>> {
         // check if player has card
         let player = &self.players[index];
         if !player.current_cards.contains(&card) {
-            return Err((Status::Forbidden, "You do not have this card!"));
-        }
+            println!("Player {} does not have card {}", index, card.to_string());
+            return Err((Status::BadRequest, "You do not have this card!"));
+        } 
         let GameState::Playing {
             ref mut current_round,
             tjall,
@@ -133,14 +134,15 @@ impl Game {
         else {
             return Err((Status::Conflict, "Game is not in progress!"));
         };
-
-        let round_opening_card = &current_round.played_cards[0];
-        let valid_cards = Game::valid_cards(player, round_opening_card.suit);
-        if !valid_cards.contains(&card) {
-            return Err((
-                Status::BadRequest,
-                "You cannot play this card! If you have a card of the same suit, you must play it.",
-            ));
+        if current_round.played_cards.len() > 0 {
+            let round_opening_card = &current_round.played_cards[0];
+            let valid_cards = Game::valid_cards(player, round_opening_card.suit);
+            if !valid_cards.contains(&card) {
+                return Err(
+                    (Status::Conflict,
+                    "You cannot play this card! If you have a card of the same suit, you must play it.")
+                );
+            }
         }
         current_round.played_cards.push(card.clone());
         // remove card from player's hand
@@ -160,6 +162,51 @@ impl Game {
                 .position(|c| c == winning_card)
                 .unwrap();
             current_round.set_winner(winning_card_index);
+            // add round to played rounds
+            self.played_rounds.push(current_round.clone());
+            // check if game is finished
+            // count scores
+            let mut team_1_score = 0;
+            let mut team_2_score = 0;
+            for round in &self.played_rounds {
+                if let RoundState::RoundWon { winner_user_id: winner_index } = round.state {
+                    match (winner_index + round.player_starting) % 2 {
+                        0 => team_1_score += 1,
+                        1 => team_2_score += 1,
+                        _ => unreachable!(), //should never happen
+                    }
+                }
+            }
+            if team_1_score >= 7 {
+                // team 1 wins
+                let winners = [self.players[0].clone(), self.players[2].clone()];
+                self.state = GameState::Finished {
+                    winners,
+                    reason: EndGameReason::Score {
+                        score: [team_1_score, team_2_score],
+                    },
+                };
+            } else if team_2_score >= 7 {
+                // team 2 wins
+                let winners = [self.players[1].clone(), self.players[3].clone()];
+                self.state = GameState::Finished {
+                    winners,
+                    reason: EndGameReason::Score {
+                        score: [team_1_score, team_2_score],
+                    },
+                };
+            } else { // game is not finished; start new round
+                //check who won this round
+                let winner_index = match current_round.state {
+                    RoundState::RoundWon { winner_user_id } => winner_user_id,
+                    _ => unreachable!(), //should never happen
+                };
+                self.state = GameState::Playing {
+                    current_round: Round::new(winning_card_index),
+                    tjall,
+                };
+            }
+            
         }
         Ok(())
     }
@@ -249,31 +296,32 @@ pub async fn play_card<'a>(
     let user = user_repo.get(user_id).await?;
 
     match game.state {
-        GameState::Playing {
-            ref current_round,
-            tjall: _,
-        } => {
+        GameState::Playing { ref current_round, tjall: _, } => 
+        {
             // check if it is player's turn (or player is admin)
-            let player_turn = current_round.played_cards.len();
-            let index = match user.role {
+            let player_turn = (current_round.played_cards.len() + current_round.player_starting) % 4;
+            let current_player_index = match user.role {
                 Role::Admin => {
                     // user is admin; allow them to play card as if they are current player
                     Some(player_turn)
                 }
                 _ => {
-                    // user is not admin; check if they are current player
-                    room.players.iter().position(|room_player| {
-                        room_player.as_ref().map_or(false, |p| p.user_id == user_id)
+                    // user is not admin; get id of current player
+                    game.players.iter().position(|game_player| {
+                        game_player.user_id == user_id
                     })
                 }
-            }
-            .ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
-            if index != player_turn {
+            }.ok_or((Status::Unauthorized, "You are not a player in this room!"))? + current_round.player_starting;
+
+            if current_player_index != player_turn {
+                println!("Player {} is not the current player! Player turn: {}\nPlayer order: {}", current_player_index, player_turn, game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", "));
                 return Err((Status::BadRequest, "It is not your turn!"));
             }
-            game.play_card(card, index)?;
+            game.play_card(card, current_player_index)?;
+            game_repo.update_game(room_id, game.clone()).await;
         }
-        GameState::Starting { ref remaining_deck } => {
+        GameState::Starting { ref remaining_deck } => 
+        {
             //let player pick tjall
             // check if user is starting player (or admin)
             let index = if let Role::Admin = user.role {
@@ -281,17 +329,19 @@ pub async fn play_card<'a>(
                 Some(0)
             } else {
                 // user is not admin; check if they are current player
-                room.players.iter().position(|room_player| {
-                    room_player.as_ref().map_or(false, |p| p.user_id == user_id)
+                game.players.iter().position(|game_player| {
+                    game_player.user_id == user_id
                 })
             }
             .ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
 
             if index != 0 {
+                println!("Player {} is not the starting player!\nPlayer order: {}", index, game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", "));
                 return Err((Status::Unauthorized, "You are not the starting player!"));
             }
             let starting_player = &game.players[0];
             if !starting_player.current_cards.contains(&card) {
+                println!("Player {} does not have card {}", starting_player.name, card.to_string());
                 return Err((Status::BadRequest, "You do not have this card!"));
             }
             // cloning remaining deck here to avoid borrowing as immutable on next line; no need to drain, because next game state does not have remaining deck
@@ -300,13 +350,14 @@ pub async fn play_card<'a>(
             let cards_amt = remaining_deck.len() / 4;
             for player in &mut game.players {
                 player
-                    .current_cards
-                    .extend(remaining_deck.drain(0..cards_amt));
+                .current_cards
+                .extend(remaining_deck.drain(0..cards_amt));
             }
+            game_repo.update_game(room_id, game.clone()).await;
         }
         _ => return Err((Status::Conflict, "Game is not in progress!")),
     }
-    Ok(Json(game.clone()))
+    Ok(Json(game))
 }
 
 #[delete("/<room_id>/game")]

@@ -26,9 +26,7 @@
 
 <script>
   import { useAuthStore } from '@/store/auth'
-  import { RouterLink } from 'vue-router'
   import { post } from '@/requests'
-  import { ref, onMounted } from 'vue'
   export default {
     name: "CreateRoom",
     data() {
@@ -69,9 +67,7 @@
     async mounted() {
       if (this.auth.isInAnyRoom) {
         this.roomId = this.auth.getRoomId;
-        console.log("User is already in room:" + this.roomId);
       }
-      console.log(`the CreateRoom component is now mounted. (room: ${this.roomId}))`)
     },
 }
 </script>

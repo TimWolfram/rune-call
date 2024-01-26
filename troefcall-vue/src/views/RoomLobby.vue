@@ -16,6 +16,9 @@
     </v-container>
 
     <v-container v-else>
+      <div>
+        <v-card-title >{{room.name}}</v-card-title>
+      </div>
       <div v-if="requiresPassword">
         <v-text-field
           v-model="password"
@@ -25,9 +28,9 @@
           dense
           class="ma-1" />
       </div>
-      <div>
-        <v-card-title >{{room.name}}</v-card-title>
-      </div>
+      <v-alert v-if="passwordError" type="error">
+        {{ passwordError }}
+      </v-alert>
       <div class="d-flex align-content-center justify-center">
         <user :user="room.players[0]" v-on:join="join(0)"/>
       </div>
@@ -76,6 +79,7 @@
   //   null,
   // ]);
   const roomDataError = ref(null);
+  const passwordError = ref(null);
   const room = ref(null);
   const password = ref("");
 
@@ -95,6 +99,10 @@
       roomDataError.value = "NaN";
       return;
     }
+    if (isGameInProgress()){
+      console.log('Game is in progress, redirecting to game');
+      router.push('/rooms/' + props.roomId + '/game');
+    }
     refresher = setInterval(refresh, LOBBY_REFRESH_INTERVAL);
     refresh();
   });
@@ -103,10 +111,11 @@
     clearInterval(refresher);
   });
 
+  function isGameInProgress() { return room?.value?.game_in_progress; }
   function refresh(){
     getRoomData();
     //redirect if game is in progress
-    if(room?.value?.game_in_progress) {
+    if(isGameInProgress()) {
       console.log('Game is in progress, redirecting to game');
       router.push('/rooms/' + props.roomId + '/game');
     }
@@ -131,13 +140,15 @@
   }
 
   function join(index) {
-    post('rooms/' + props.roomId + '/players/' + index)
+    post('rooms/' + props.roomId + '/players/' + index, password.value)
       .then(response => {
         console.log('Joined room: ' + JSON.stringify(response.data));
         room.value = response.data;
         auth.setCurrentRoom(props.roomId);
+        passwordError.value = null;
       }).catch(error => {
-        console.error('Failed to join room: ' + error.response.data);
+        passwordError.value = error.response.data;
+        console.error('Failed to join room: ' + JSON.stringify(error.response.data));
       });
   }
 

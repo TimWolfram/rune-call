@@ -39,8 +39,11 @@ export default {
             return '#000000';
         },
         getCardUnicode() {
+            if (this.card === null || this.card === undefined) {
+                return '';
+            }
             //determine suit by first letter
-            let suit = this.card?.suit.charAt(0);
+            let suit = this.card.suit.charAt(0);
             if (suit === 'H') {
                 suit = '♥';
             }

@@ -28,11 +28,20 @@
           <v-btn size="large" text="Log in" block to="/login" />
         </div>
         <div v-else>
-          <v-card-text class="text-subtitle-2" v-text="'Hello, ' + auth.getUsername + '!'" label="Username" readonly />
+          <v-card-text class="text-subtitle-2" label="Username">
+            Hello, {{ auth.getUsername }}!
+          </v-card-text>
           <v-text-field v-model="displayName" label="Display Name" :rules="displayNameRules" />
           <v-btn size="large" class="pa-3" block color="success" text="Save Display Name" @click="saveDisplayName" />
           <br/>
           <v-btn size="large" class="pa-3" block color="error" text="Log out" @click="auth.logout" />
+        </div>
+        <div v-if="prefStore.isTesting">
+          <p>These are buttons for testing room 0, remove when not testing</p>
+          <v-btn size="large" class="ma-3" block color="success" text="Log in as admin" @click="auth.login('admin', 'adminpw!')" />
+          <v-btn size="large" class="ma-3" block color="success" text="Log in as user97" @click="auth.login('user97', 'userpw!')" />
+          <v-btn size="large" class="ma-3" block color="success" text="Log in as user98" @click="auth.login('user98', 'userpw!')" />
+          <v-btn size="large" class="ma-3" block color="success" text="Log in as user99" @click="auth.login('user99', 'userpw!')" />
         </div>
       </v-card>
     </v-container>

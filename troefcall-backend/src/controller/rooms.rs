@@ -113,7 +113,7 @@ pub async fn delete_room<'a>(
 pub async fn join_room<'a>(
     room_id: usize,
     player_index: usize,
-    password: Option<String>,
+    password: Option<Json<String>>,
     user_repo: &'a State<UserRepository>,
     room_repo: &'a State<RoomRepository>,
     cookies: &'a CookieJar<'a> ) 
@@ -133,7 +133,6 @@ pub async fn join_room<'a>(
             return Err((Status::Unauthorized, "Room is password protected!"))
         };
         password::verify_password(password.as_str(), room.password.as_str())?;
-        return Err((Status::Unauthorized, "Invalid password!"));
     }
     let player = Player::from(&user);
     user.current_room = Some(room_id);

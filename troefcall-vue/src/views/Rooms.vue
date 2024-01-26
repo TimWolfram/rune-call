@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <v-container v-if="roomId != null">
     <p>You are already in a room. <router-link :to="'rooms/' + roomId">Go to room</router-link></p>
@@ -18,6 +17,7 @@
   </v-container>
 </template>
 
+<!-- eslint-disable vue/multi-word-component-names -->
 <script>
 import RoomList from '@/components/troefcall/room/RoomList.vue'
 import { get } from '@/requests'

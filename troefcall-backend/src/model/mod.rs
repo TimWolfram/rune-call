@@ -9,6 +9,7 @@ pub mod game {
 
     mod round;
     pub use round::Round;
+    pub use round::RoundState;
 
     mod game;
     pub use game::Game;
