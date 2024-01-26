@@ -178,6 +178,15 @@ impl RoomRepository {
         hosts.insert(to_user_id, room_id);
         true
     }
+    pub async fn end_game (&self, room_id: RoomId) -> bool {
+        let mut rooms = self.rooms.lock().await;
+        if let Some(room) = rooms.get_mut(&room_id) {
+            room.game_in_progress = false;
+            true
+        } else {
+            false
+        }
+    }
     pub async fn delete_room(&self, room_id: &RoomId) -> Option<Room> {
         let room = self.rooms.lock().await.remove(room_id)?;
         let host_id = room.host_id;

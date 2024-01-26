@@ -15,14 +15,13 @@ pub async fn login<'a>(
     form: Option<Json<LoginForm<'a>>>,
     cookies: &'a CookieJar<'a>
 ) -> ObjectReturn<'a, User> {
-    if form.is_none() {
+    let Some(form) = form else{   
         let user_id = LoginToken::from_cookies(cookies)?;
         let user = user_repo.get(user_id).await?;
         println!("User {}({}) logged in.\n{}", user.username, user.id, rocket::serde::json::to_string(&user).unwrap());
         let json = Json(user);
         return Ok(json);
-    }
-    let form = form.unwrap();
+    };
     let user: Result<User, (Status, &str)> = user_repo.get_by_username(form.username).await;
     let user = match user {
         Ok(user) => user,

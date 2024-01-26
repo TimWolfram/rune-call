@@ -12,8 +12,8 @@ pub struct Game {
 pub enum GameState {
     Starting {
         #[serde(skip)] 
-        remaining_deck: Vec<Card>
-    }, // starting player picks tjall from first 5 cards, then the rest of the cards are dealt
+        remaining_deck: Vec<Card> // starting player picks tjall from first 5 cards, then the rest of the cards are dealt
+    }, 
     Playing { current_round: Round, tjall: Suit },
     Finished { winners: [Player; 2], reason: EndGameReason },
 }

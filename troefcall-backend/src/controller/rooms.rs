@@ -3,6 +3,7 @@ use std::f32::consts::E;
 // controller for rooms; endpoints & logic
 use crate::model::game::{CreateRoomForm, Player, Room};
 use crate::model::login::{LoginToken, Role, LoginForm};
+use crate::password;
 use crate::repository::{UserRepository, RoomRepository, GameRepository};
 
 use rocket::http::{CookieJar, Status};
@@ -108,10 +109,11 @@ pub async fn delete_room<'a>(
     Ok(())
 }
 
-#[post("/<room_id>/players/<player_index>")]
+#[post("/<room_id>/players/<player_index>", data = "<password>", format = "json")]
 pub async fn join_room<'a>(
     room_id: usize,
     player_index: usize,
+    password: Option<String>,
     user_repo: &'a State<UserRepository>,
     room_repo: &'a State<RoomRepository>,
     cookies: &'a CookieJar<'a> ) 
@@ -124,10 +126,19 @@ pub async fn join_room<'a>(
         }
         return Err((Status::Conflict, "Cannot join: user is already in this room!"));
     };
-    user.current_room = Some(room_id);
-    let player = Player::from(&user);
+    
     let room = &mut room_repo.get_room_by_id(room_id).await?;
+    if (room.password.len() > 0) {
+        let Some(password) = password else {
+            return Err((Status::Unauthorized, "Room is password protected!"))
+        };
+        password::verify_password(password.as_str(), room.password.as_str())?;
+        return Err((Status::Unauthorized, "Invalid password!"));
+    }
+    let player = Player::from(&user);
+    user.current_room = Some(room_id);
     room.add_player(player, player_index)?;
+    
     if !user_repo.update(user).await {
         return Err((Status::InternalServerError, "Failed to update user!"));
     }
@@ -163,7 +174,7 @@ pub async fn leave_room<'a>(
     game_repo: &'a State<GameRepository>,
     cookies: &CookieJar<'a>) 
 -> Result<(), Error<'a>> {
-    let user_id = LoginToken::refresh_jwt(cookies).unwrap();
+    let user_id = LoginToken::refresh_jwt(cookies)?;
     let mut user = user_repo.get(user_id).await?;
     if user.current_room != Some(room_id) {
         return Err((Status::Unauthorized, "User is not in room!"));

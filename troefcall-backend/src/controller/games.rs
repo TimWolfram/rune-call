@@ -1,6 +1,4 @@
-use crate::model::game::{
-    Card, EndGameReason, Game, GameState, Player, Room, RoomId, Suit, Round,
-};
+use crate::model::game::{Card, EndGameReason, Game, GameState, Player, Room, RoomId, Round, Suit};
 use crate::model::login::{LoginToken, Role, UserId};
 use crate::repository::{GameRepository, RoomRepository, UserRepository};
 
@@ -27,7 +25,10 @@ impl Game {
             .map(|player| player.unwrap())
             .collect::<Vec<Player>>()
             .try_into()
-            .or(Err((Status::Conflict, "Cannot start the game: room should have 4 players!")))?;
+            .or(Err((
+                Status::Conflict,
+                "Cannot start the game: room should have 4 players!",
+            )))?;
 
         // check who the next starting player should be based on who won last game
         enum StartingPlayer {
@@ -110,7 +111,7 @@ impl Game {
         let GameState::Starting { remaining_deck: _ } = self.state else {
             return Err((Status::Conflict, "Game is not starting!"));
         };
-        
+
         self.state = GameState::Playing {
             current_round: Round::new(),
             tjall: suit,
@@ -125,18 +126,27 @@ impl Game {
         if !player.current_cards.contains(&card) {
             return Err((Status::Forbidden, "You do not have this card!"));
         }
-        let GameState::Playing { ref mut current_round, tjall } = self.state else {
+        let GameState::Playing {
+            ref mut current_round,
+            tjall,
+        } = self.state
+        else {
             return Err((Status::Conflict, "Game is not in progress!"));
         };
 
         let round_opening_card = &current_round.played_cards[0];
         let valid_cards = Game::valid_cards(player, round_opening_card.suit);
         if !valid_cards.contains(&card) {
-            return Err((Status::BadRequest, "You cannot play this card! If you have a card of the same suit, you must play it."));
+            return Err((
+                Status::BadRequest,
+                "You cannot play this card! If you have a card of the same suit, you must play it.",
+            ));
         }
         current_round.played_cards.push(card.clone());
         // remove card from player's hand
-        self.players[index].current_cards.retain(|c| c.clone() != card);
+        self.players[index]
+            .current_cards
+            .retain(|c| c.clone() != card);
         // check if round is finished
         if current_round.played_cards.len() == 4 {
             // determine winner
@@ -144,7 +154,11 @@ impl Game {
             for played_card in &current_round.played_cards {
                 winning_card = Card::compare(winning_card, played_card, tjall);
             }
-            let winning_card_index = current_round.played_cards.iter().position(|c| c == winning_card).unwrap();
+            let winning_card_index = current_round
+                .played_cards
+                .iter()
+                .position(|c| c == winning_card)
+                .unwrap();
             current_round.set_winner(winning_card_index);
         }
         Ok(())
@@ -172,12 +186,8 @@ pub async fn get_game<'a>(
     room_repo: &'a State<RoomRepository>,
     game_repo: &'a State<GameRepository>,
 ) -> Result<Json<Game>, Error<'a>> {
-    let room = room_repo
-        .get_room_by_id(room_id)
-        .await?;
-    let game = game_repo
-        .get_game_from_room(room.id)
-        .await?;
+    let room = room_repo.get_room_by_id(room_id).await?;
+    let game = game_repo.get_game_from_room(room.id).await?;
     Ok(Json(game.clone()))
 }
 
@@ -188,7 +198,7 @@ pub async fn create_game<'a>(
     room_repo: &'a State<RoomRepository>,
     user_repo: &'a State<UserRepository>,
     game_repo: &'a State<GameRepository>,
-    cookies: &'a CookieJar<'a>
+    cookies: &'a CookieJar<'a>,
 ) -> Result<Json<Game>, Error<'a>> {
     // first check if player is logged in before trying to create game; if not, no need to lock mutex
     let logged_in_user_id = LoginToken::refresh_jwt(cookies)?;
@@ -198,22 +208,23 @@ pub async fn create_game<'a>(
         return Err((Status::Unauthorized, "User is not in room!"));
     }
     // get room
-    let mut room = room_repo
-        .get_room_by_id(room_id)
-        .await?;
-    
+    let mut room = room_repo.get_room_by_id(room_id).await?;
+
     let authorized = (user.role == Role::Admin) | (logged_in_user_id != room.host_id);
     if !authorized {
         return Err((Status::Unauthorized, "Only the host can start the game!"));
     }
     if room.players.len() < 3 {
-        return Err((Status::BadRequest, "Not enough players in room to start game! You need at least 3 players."));
+        return Err((
+            Status::BadRequest,
+            "Not enough players in room to start game! You need at least 3 players.",
+        ));
     }
     if let Ok(game) = game_repo.get_game_from_room(room.id).await {
         if game.is_in_progress() {
             return Err((Status::BadRequest, "Game already started!"));
         }
-    }    
+    }
     room.game_in_progress = true;
     let game = game_repo.create_game(room.clone()).await?;
     room_repo.update_room(room).await;
@@ -221,7 +232,7 @@ pub async fn create_game<'a>(
     Ok(Json(game.clone()))
 }
 
-#[put("/<room_id>/game", data = "<card>")]
+#[put("/<room_id>/game", data = "<card>", format = "json")]
 pub async fn play_card<'a>(
     room_id: RoomId,
     room_repo: &'a State<RoomRepository>,
@@ -231,18 +242,17 @@ pub async fn play_card<'a>(
     cookies: &'a CookieJar<'a>,
 ) -> Result<Json<Game>, Error<'a>> {
     let user_id = LoginToken::refresh_jwt(cookies)?;
-    let room = room_repo
-        .get_room_by_id(room_id)
-        .await?;
-    let mut game = game_repo
-        .get_game_from_room(room_id)
-        .await?;
+    let room = room_repo.get_room_by_id(room_id).await?;
+    let mut game = game_repo.get_game_from_room(room_id).await?;
 
     let card = card.into_inner();
     let user = user_repo.get(user_id).await?;
 
     match game.state {
-        GameState::Playing { ref current_round , tjall: _} => {
+        GameState::Playing {
+            ref current_round,
+            tjall: _,
+        } => {
             // check if it is player's turn (or player is admin)
             let player_turn = current_round.played_cards.len();
             let index = match user.role {
@@ -256,14 +266,15 @@ pub async fn play_card<'a>(
                         room_player.as_ref().map_or(false, |p| p.user_id == user_id)
                     })
                 }
-            }.ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
+            }
+            .ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
             if index != player_turn {
                 return Err((Status::BadRequest, "It is not your turn!"));
             }
             game.play_card(card, index)?;
-
         }
-        GameState::Starting { ref remaining_deck } => { //let player pick tjall
+        GameState::Starting { ref remaining_deck } => {
+            //let player pick tjall
             // check if user is starting player (or admin)
             let index = if let Role::Admin = user.role {
                 // user is admin; allow them to play card as if they are current player
@@ -273,13 +284,14 @@ pub async fn play_card<'a>(
                 room.players.iter().position(|room_player| {
                     room_player.as_ref().map_or(false, |p| p.user_id == user_id)
                 })
-            }.ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
+            }
+            .ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
 
             if index != 0 {
                 return Err((Status::Unauthorized, "You are not the starting player!"));
             }
             let starting_player = &game.players[0];
-            if !starting_player.current_cards.contains(&card){
+            if !starting_player.current_cards.contains(&card) {
                 return Err((Status::BadRequest, "You do not have this card!"));
             }
             // cloning remaining deck here to avoid borrowing as immutable on next line; no need to drain, because next game state does not have remaining deck
@@ -287,7 +299,9 @@ pub async fn play_card<'a>(
             game.pick_tjall_and_start(card.suit)?;
             let cards_amt = remaining_deck.len() / 4;
             for player in &mut game.players {
-                player.current_cards.extend(remaining_deck.drain(0..cards_amt));
+                player
+                    .current_cards
+                    .extend(remaining_deck.drain(0..cards_amt));
             }
         }
         _ => return Err((Status::Conflict, "Game is not in progress!")),
@@ -296,25 +310,27 @@ pub async fn play_card<'a>(
 }
 
 #[delete("/<room_id>/game")]
-pub async fn forfeit<'a> (
+pub async fn forfeit<'a>(
     room_id: RoomId,
     game_repo: &'a State<GameRepository>,
+    room_repo: &'a State<RoomRepository>,
     cookies: &'a CookieJar<'_>,
 ) -> Result<Json<Game>, Error<'a>> {
     let user_id = LoginToken::refresh_jwt(cookies)?;
-    let game = forfeit_player(game_repo, room_id, user_id).await?;
+    let game = forfeit_player(game_repo, room_repo, room_id, user_id).await?;
     Ok(Json(game))
 }
-pub async fn forfeit_player<'a> (
-    game_repo: &'a State<GameRepository>, 
+pub async fn forfeit_player<'a>(
+    game_repo: &'a State<GameRepository>,
+    room_repo: &'a State<RoomRepository>,
     room_id: RoomId,
-    user_id: UserId
-) -> Result<Game, Error<'a>>{
-    let mut game = game_repo
-        .get_game_from_room(room_id)
-        .await?;
+    user_id: UserId,
+) -> Result<Game, Error<'a>> {
+    let mut game = game_repo.get_game_from_room(room_id).await?;
     // check if game is already finished
     if let GameState::Finished { .. } = game.state {
+        // set game in progress to false on room
+        room_repo.end_game(room_id).await;
         return Err((Status::Conflict, "Game is already finished!"));
     }
     // determine winners based on if index is odd or even
@@ -323,23 +339,30 @@ pub async fn forfeit_player<'a> (
         .iter()
         .position(|p| p.user_id == user_id)
         .ok_or((Status::Unauthorized, "User is not a player in this game!"))?;
+    
+    // set game in progress to false on room
+    room_repo.end_game(room_id).await;
+    
     let winners = match room_player_index % 2 {
-        0 => { //even
+        0 => {
+            //even
             [game.players[1].clone(), game.players[3].clone()]
         }
-        1 => { // odd
+        1 => {
+            // odd
             [game.players[0].clone(), game.players[2].clone()]
         }
         _ => unreachable!(), //should never happen
     };
 
-    //game is updated instead of actually deleted, because we need to remember last game's winners
+    //game is updated instead of actually deleted, because we need to remember last game's winners when starting a new game
     game.state = GameState::Finished {
         winners,
         reason: EndGameReason::Forfeit {
             player: game.players[room_player_index].clone(),
         },
     };
+    
     game_repo.update_game(room_id, game.clone()).await;
     Ok(game)
 }
@@ -353,12 +376,8 @@ pub async fn get_cards<'a>(
     cookies: &'a CookieJar<'a>,
 ) -> Result<Json<Vec<Card>>, Error<'a>> {
     let user_id = LoginToken::refresh_jwt(cookies)?;
-    room_repo
-        .get_room_by_id(room_id)
-        .await?;
-    let game = game_repo
-        .get_game_from_room(room_id)
-        .await?;
+    room_repo.get_room_by_id(room_id).await?;
+    let game = game_repo.get_game_from_room(room_id).await?;
     user_repo.get(user_id).await?;
 
     let player = game
@@ -370,7 +389,7 @@ pub async fn get_cards<'a>(
 }
 
 #[get("/<room_id>/game/cards/<player_index>")]
-pub async fn get_cards_admin<'a> (
+pub async fn get_cards_admin<'a>(
     room_id: RoomId,
     room_repo: &'a State<RoomRepository>,
     game_repo: &'a State<GameRepository>,
@@ -379,20 +398,20 @@ pub async fn get_cards_admin<'a> (
     cookies: &CookieJar<'_>,
 ) -> Result<Json<Vec<Card>>, Error<'a>> {
     let logged_in_user = user_repo.get(LoginToken::refresh_jwt(cookies)?).await?;
-    if logged_in_user.role  != Role::Admin {
+    if logged_in_user.role != Role::Admin {
         return Err((Status::Unauthorized, "You are not an admin!"));
     };
 
     // user is admin: get cards for player at index
-    room_repo
-        .get_room_by_id(room_id)
-        .await?;
-    let game = game_repo
-        .get_game_from_room(room_id)
-        .await?;
+    room_repo.get_room_by_id(room_id).await?;
+    let game = game_repo.get_game_from_room(room_id).await?;
 
     let player = game.players[player_index].clone();
-    let GameState::Playing { current_round, tjall: _, } = game.state else {
+    let GameState::Playing {
+        current_round,
+        tjall: _,
+    } = game.state
+    else {
         return Err((Status::Unauthorized, "Game is not in progress!"));
     };
     let round_suit = current_round.played_cards[0].suit;

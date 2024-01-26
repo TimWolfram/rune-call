@@ -16,6 +16,15 @@
     </v-container>
 
     <v-container v-else>
+      <div v-if="requiresPassword">
+        <v-text-field
+          v-model="password"
+          label="Password"
+          type="password"
+          outlined
+          dense
+          class="ma-1" />
+      </div>
       <div>
         <v-card-title >{{room.name}}</v-card-title>
       </div>
@@ -68,9 +77,14 @@
   // ]);
   const roomDataError = ref(null);
   const room = ref(null);
+  const password = ref("");
+
   const auth = useAuthStore();
   const router = useRouter();
-
+  
+  const requiresPassword = () => room.value?.password != null 
+                                    && room.value?.password != ""
+                                    && !isPlayer();
   let refresher = null;
   
   onMounted(() => {
@@ -92,7 +106,7 @@
   function refresh(){
     getRoomData();
     //redirect if game is in progress
-    if(room?.value?.game_in_progress){
+    if(room?.value?.game_in_progress) {
       console.log('Game is in progress, redirecting to game');
       router.push('/rooms/' + props.roomId + '/game');
     }
@@ -142,7 +156,7 @@
         useAuthStore().setUser(user);
         getRoomData();
       }).catch(error => {
-        console.error('Failed to leave room: ' + error.response.data);
+        console.error('Failed to leave room: ' + JSON.stringify(error.response.data));
       });
   }
 

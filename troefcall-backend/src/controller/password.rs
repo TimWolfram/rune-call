@@ -5,7 +5,7 @@ pub fn hash_password<'a>(password: &str) -> Result<String, Error<'a>> {
     hash(password, DEFAULT_COST).or(Err((Status::InternalServerError, "Error while hashing password!")))
 }
 
-pub fn verify_password<'a>(password: &'a str, hashed: &'a str) -> Result<(), Error<'a>> {
+pub fn verify_password<'a>(password: &'a str, hashed: &'a str) -> Result<(), Error<'static>> {
     println!("Verifying password: {} with hash: {}", password, hashed);
     let valid = verify(password, hashed).or(Err((Status::InternalServerError, "Error while verifying password!")))?;
     if !valid {
