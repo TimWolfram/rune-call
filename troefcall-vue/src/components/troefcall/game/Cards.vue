@@ -26,6 +26,7 @@ export default {
     name: "Cards",
     props: {
         cards: Array,
+        tjall: String,
     },
     data() {
         return {
@@ -84,10 +85,13 @@ export default {
                     'border': '2pt solid #DD0000',
                 }
             }
-            else {
+            if(card.suit == this.tjall) {
                 return {
-                    'border': '2pt solid #000000',
+                    'border': '2pt solid #00DD00',
                 }
+            }
+            return {
+                'border': '2pt solid #000000',
             }
         },
     },

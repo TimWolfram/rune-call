@@ -160,15 +160,15 @@ export const useAuthStore = defineStore({
 
 
 function getUserFromLocalStorage() {
-    let u = localStorage.getItem('user');
-    if (u === null) {
+    let user = localStorage.getItem('user');
+    if (user === null) {
         return null;
     }
     try {
-        return JSON.parse(u);
+        return JSON.parse(user);
     }
-    catch (e) {
-        console.error('Error while parsing user from local storage: ' + e);
+    catch (error) {
+        console.error('Error while parsing user from local storage: ' + error);
         return null;
     }
 }

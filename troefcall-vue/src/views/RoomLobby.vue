@@ -19,7 +19,7 @@
       <div>
         <v-card-title >{{room.name}}</v-card-title>
       </div>
-      <div v-if="requiresPassword">
+      <div v-if="requiresPassword && !isPlayer()">
         <v-text-field
           v-model="password"
           label="Password"
@@ -52,6 +52,9 @@
           class="ma-1"
           color="success"
           @click="startGame">Start game</v-btn>
+          <div v-else-if="hasEnoughPlayers()">
+            <v-card-text>Waiting for host to start game..</v-card-text> 
+          </div>
       </div>      
     </v-container>
   </v-card>
@@ -99,19 +102,22 @@
       roomDataError.value = "NaN";
       return;
     }
+    refresher = setInterval(refresh, LOBBY_REFRESH_INTERVAL);
+    refresh();
     if (isGameInProgress()){
       console.log('Game is in progress, redirecting to game');
       router.push('/rooms/' + props.roomId + '/game');
     }
-    refresher = setInterval(refresh, LOBBY_REFRESH_INTERVAL);
-    refresh();
   });
   onBeforeUnmount(() => {
     console.log('Unmounted room lobby');
     clearInterval(refresher);
   });
 
-  function isGameInProgress() { return room?.value?.game_in_progress; }
+  function isGameInProgress() {
+    console.log('Checking if game in progress for room: ' + room.value); 
+    return room.value?.game_in_progress; 
+  }
   function refresh(){
     getRoomData();
     //redirect if game is in progress
@@ -184,6 +190,9 @@
     if(!isHost()){
       return false;
     }
+    return hasEnoughPlayers();
+  }
+  function hasEnoughPlayers() {
     for(let i = 0; i < room.value.players.length; i++){
       if(room.value.players[i] == null){
         return false;

@@ -10,7 +10,7 @@ pub struct Round {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum RoundState {
     InProgress,
-    RoundWon{winner_user_id: usize},
+    RoundWon{winner_user_index: usize},
 }
 impl Round {
     pub fn new(player_starting: usize) -> Self {
@@ -20,7 +20,7 @@ impl Round {
             player_starting,
         }
     }
-    pub fn set_winner(&mut self, winning_player_id: usize) {
-        self.state = RoundState::RoundWon{winner_user_id: winning_player_id};
+    pub fn set_winner(&mut self, winning_card_index: usize) {
+        self.state = RoundState::RoundWon{winner_user_index: winning_card_index + self.player_starting};
     }
 }

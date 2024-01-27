@@ -26,6 +26,14 @@ impl Suit {
             Suit::Diamonds => '♦',
         }
     }
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Suit::Spades => "Spades",
+            Suit::Hearts => "Hearts",
+            Suit::Clubs => "Clubs",
+            Suit::Diamonds => "Diamonds",
+        }
+    }
 }
 impl ToString for Card{
     fn to_string(&self) -> String {
@@ -36,7 +44,10 @@ impl ToString for Card{
             14 => "A".to_string(),
             _ => self.value.to_string(),
         };
-        return format!("{}{}", self.suit.to_char(), val);
+        return format!("{} of {}", 
+            val,
+            self.suit.to_str(), 
+        );
     }
 }
 impl<'r> rocket::request::FromParam<'r> for Suit {

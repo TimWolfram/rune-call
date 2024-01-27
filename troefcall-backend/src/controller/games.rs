@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::model::game::{Card, EndGameReason, Game, GameState, Player, Room, RoomId, Round, RoundState, Suit};
 use crate::model::login::{LoginToken, Role, UserId};
 use crate::repository::{GameRepository, RoomRepository, UserRepository};
@@ -153,7 +155,7 @@ impl Game {
         if current_round.played_cards.len() == 4 {
             // determine winner
             let mut winning_card = &current_round.played_cards[0];
-            for played_card in &current_round.played_cards {
+            for played_card in &current_round.played_cards[1..] {
                 winning_card = Card::compare(winning_card, played_card, tjall);
             }
             let winning_card_index = current_round
@@ -169,8 +171,8 @@ impl Game {
             let mut team_1_score = 0;
             let mut team_2_score = 0;
             for round in &self.played_rounds {
-                if let RoundState::RoundWon { winner_user_id: winner_index } = round.state {
-                    match (winner_index + round.player_starting) % 2 {
+                if let RoundState::RoundWon { winner_user_index } = round.state {
+                    match (winner_user_index + round.player_starting) % 2 {
                         0 => team_1_score += 1,
                         1 => team_2_score += 1,
                         _ => unreachable!(), //should never happen
@@ -197,14 +199,13 @@ impl Game {
                 };
             } else { // game is not finished; start new round
                 //check who won this round
-                let winner_index = match current_round.state {
-                    RoundState::RoundWon { winner_user_id } => winner_user_id,
-                    _ => unreachable!(), //should never happen
+                let RoundState::RoundWon { winner_user_index } = current_round.state else {
+                    panic!("Round is not set as finished!"); //should never happen
                 };
                 self.state = GameState::Playing {
-                    current_round: Round::new(winning_card_index),
+                    current_round: Round::new(winner_user_index),
                     tjall,
-                };
+                }
             }
             
         }
@@ -214,15 +215,26 @@ impl Game {
 
 impl Card {
     pub fn compare<'a>(highest: &'a Card, new: &'a Card, tjall: Suit) -> &'a Card {
-        match highest.suit == new.suit {
+        let winner = match highest.suit == new.suit {
             // if suit is different, new wins if suit is tjall
-            false if new.suit == tjall => new,
-            false => highest,
-
+            false => {
+                if new.suit == tjall {
+                    new
+                } else {
+                    highest
+                }
+            } 
             // if suit is same, new wins if value is higher
-            true if highest.value > new.value => highest,
-            true => new,
-        }
+            true => {
+                if highest.value > new.value {
+                    highest
+                } else {
+                    new
+                }
+            } 
+        };
+        println!("Comparing cards: {} vs {}. Winner: {}", highest.to_string(), new.to_string(), winner.to_string());
+        winner
     }
 }
 
@@ -289,7 +301,6 @@ pub async fn play_card<'a>(
     cookies: &'a CookieJar<'a>,
 ) -> Result<Json<Game>, Error<'a>> {
     let user_id = LoginToken::refresh_jwt(cookies)?;
-    let room = room_repo.get_room_by_id(room_id).await?;
     let mut game = game_repo.get_game_from_room(room_id).await?;
 
     let card = card.into_inner();
@@ -299,11 +310,11 @@ pub async fn play_card<'a>(
         GameState::Playing { ref current_round, tjall: _, } => 
         {
             // check if it is player's turn (or player is admin)
-            let player_turn = (current_round.played_cards.len() + current_round.player_starting) % 4;
+            let player_index_in_game = (current_round.played_cards.len() + current_round.player_starting) % 4;
             let current_player_index = match user.role {
                 Role::Admin => {
                     // user is admin; allow them to play card as if they are current player
-                    Some(player_turn)
+                    Some(player_index_in_game)
                 }
                 _ => {
                     // user is not admin; get id of current player
@@ -311,10 +322,10 @@ pub async fn play_card<'a>(
                         game_player.user_id == user_id
                     })
                 }
-            }.ok_or((Status::Unauthorized, "You are not a player in this room!"))? + current_round.player_starting;
+            }.ok_or((Status::Unauthorized, "You are not a player in this room!"))?;
 
-            if current_player_index != player_turn {
-                println!("Player {} is not the current player! Player turn: {}\nPlayer order: {}", current_player_index, player_turn, game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", "));
+            if current_player_index != player_index_in_game {
+                println!("Player {} is not the current player! Player turn: {}\nPlayer order: {}", current_player_index, player_index_in_game, game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", "));
                 return Err((Status::BadRequest, "It is not your turn!"));
             }
             game.play_card(card, current_player_index)?;

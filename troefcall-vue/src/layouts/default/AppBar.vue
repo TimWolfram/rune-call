@@ -36,20 +36,20 @@
           <br/>
           <v-btn size="large" class="pa-3" block color="error" text="Log out" @click="auth.logout" />
         </div>
-        <div v-if="prefStore.isTesting">
+        <v-container v-if="prefStore.isTesting">
           <p>These are buttons for testing room 0, remove when not testing</p>
-          <v-btn size="large" class="ma-3" block color="success" text="Log in as admin" @click="auth.login('admin', 'adminpw!')" />
-          <v-btn size="large" class="ma-3" block color="success" text="Log in as user97" @click="auth.login('user97', 'userpw!')" />
-          <v-btn size="large" class="ma-3" block color="success" text="Log in as user98" @click="auth.login('user98', 'userpw!')" />
-          <v-btn size="large" class="ma-3" block color="success" text="Log in as user99" @click="auth.login('user99', 'userpw!')" />
-        </div>
+          <v-btn size="large" class="ma-1" block color="success" text="Log in as admin" @click="auth.login('admin', 'adminpw!')" />
+          <v-btn size="large" class="ma-1" block color="success" text="Log in as user99" @click="auth.login('user99', 'userpw!')" />
+          <v-btn size="large" class="ma-1" block color="success" text="Log in as user98" @click="auth.login('user98', 'userpw!')" />
+          <v-btn size="large" class="ma-1" block color="success" text="Log in as user97" @click="auth.login('user97', 'userpw!')" />
+        </v-container>
       </v-card>
     </v-container>
   </v-navigation-drawer>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useTheme } from 'vuetify'
 import { useAuthStore } from '@/store/auth';
 import { usePreferencesStore } from '@/store/preferences';
@@ -71,6 +71,12 @@ onMounted(() => {
   displayName.value = auth.getDisplayName;
   console.log('Mounted app bar for user: ' + displayName.value);
 });
+watch(() => auth.user, 
+            () => { 
+              displayName.value = auth.getDisplayName;
+              console.log('Updated display name to: ' + displayName.value);
+            }
+);
 
 function toggleTheme() {
   const newLigntMode = lightMode.value;
