@@ -1,10 +1,10 @@
 <template>
     <div v-if="round">
-        <v-card v-if="!compact" width="350"
+        <v-card v-if="!compact" width="320"
             color="#005500"
             class="ma-1 pa-1"
             rounded="lg"
-        >   
+        > 
             <v-container class="d-flex align-content-center justify-center">
                 <PlayerCard :name="getPlayerName(0)" :card="getCard(0)" />
             </v-container>

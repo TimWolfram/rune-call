@@ -7,7 +7,7 @@
     </v-card>
     <v-card :color="getColorBg()" v-else class="d-flex ma-1 pa-1 justify-center" min-width="40" height="40" rounded="lg" >
         <div :style="{ color: getColor() }" >
-            <p class="text-h6">{{ getCardUnicode().substring(0, 1) }}{{ getCardUnicode().substring(1) }} </p>
+            <p class="text-h6">{{ getCardUnicode() }} </p>
         </div>
     </v-card>
 </template>

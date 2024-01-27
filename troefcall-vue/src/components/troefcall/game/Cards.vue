@@ -1,6 +1,13 @@
 <template>
     <v-card class="d-flex flex-column align-center justify-center ma-1 pa-1 bg-red" rounded="lg">
         <v-card-text class="text-body-1">Your cards:</v-card-text>
+        <div class="d-flex align-center justify-space-evenly ma-1 pa-1" v-if="selected">
+            <v-card-text class="text-body-1">Selected: {{ getCardText() }}</v-card-text>
+            <v-container width="200" class="d-flex align-center justify-center">
+                <v-btn width="100" class="ma-1" color="error" @click="clearSelect">Clear</v-btn>    
+                <v-btn width="100" class="ma-1" color="success" @click="playCard">Confirm</v-btn>
+            </v-container>
+        </div>
         <div class="d-flex flex-wrap align-center justify-center">
             <Card 
                 v-for="(card, index) in cards" 
@@ -8,13 +15,6 @@
                 :card="card" @click="onClick(card)" 
                 :style="getCardStyle(card)"
                 />
-        </div>
-        <div width="300" class="d-flex flex-column align-center justify-center ma-1 pa-1" v-if="selected">
-            <v-card-text class="text-body-1">Selected: {{ getCardText() }}</v-card-text>
-            <v-container class="d-flex align-center justify-center">
-                <v-btn width="100" class="ma-1" color="error" @click="clearSelect">Clear</v-btn>    
-                <v-btn width="100" class="ma-1" color="success" @click="playCard">Confirm</v-btn>
-            </v-container>
         </div>
     </v-card>
 </template>

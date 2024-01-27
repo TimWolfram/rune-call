@@ -1,7 +1,10 @@
 <template>
-	<v-card class="d-flex align-content-center">
-		<v-card-text class="text-body-1">{{ name }}</v-card-text>
-		<Card :card="card"/>
+	<v-card class="d-flex flex-column align-center justify-center" rounded="lg" max-width="120">
+			<p class="text-body-1 truncate-text text-wrap pa-3">
+				{{ name }}
+			</p>
+		<Card class="ma-1" :card="card"/>
+		<br/>
 	</v-card>
 </template>
 

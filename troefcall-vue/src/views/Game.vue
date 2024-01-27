@@ -21,22 +21,25 @@
         </v-alert>
     </div>
 
-    <div class="d-flex flex-column ma-1 pa-1 align-center" v-else>
-        <div class="d-flex flex-wrap ma-1 pa-1 align-center">
-            <ScoreDisplay v-if="!isStateStarting()" :game="game"/>
+    <div class="d-flex flex-column ma-1 pa-1 align-center justify-center" v-else>
+        <div class="d-flex flex-wrap ma-1 pa-1 align-center justify-center">
+            
             <v-card v-if="previousRound" >
                 <v-card-title>
                     <p class="text-h6">Last round:</p>
                 </v-card-title>
                 <RoundTable :compact="true" :round="previousRound" :cards="cards" :players="game.players" />
             </v-card>
+                
             <RoundTable v-if="currentRound" :round="currentRound" :cards="cards" :players="game.players" />
+            <ScoreDisplay v-if="!isStateStarting()" :game="game"/>
         </div>
 
-        <div v-if="gameInfo != null" class="d-flex justify-center ">
-            <p class="text-subtitle-2"> {{ gameInfo }} </p>
-            <br/>
-        </div>
+            <v-card width="50%" rounded="lg" color="#00FF0040" v-if="gameInfo != null" class="d-flex justify-center ma-1 pa-3">
+                <p class="text-subtitle-2"> {{ gameInfo }} </p>
+                <br/>
+            </v-card>
+
         <v-btn v-if="isStateFinished()" class="ma-3" color="success" text="Back to room" :to="{ name: 'Room', params: { id: props.roomId } }" />
         <Cards v-if="canSeeCards()" :disabled="!isYourTurn()" :cards="cards" :tjall="getTjall()" @onPlayCard="playCard" @onSelect="errorMessage = null" />
         <v-alert v-if="errorMessage" type="error">
@@ -44,8 +47,10 @@
         </v-alert>
     </div>
 
-    <div class="d-flex justify-center align-center" v-if="canForfeit()">
-        <v-btn v-if="isPlayer()" class="ma-16" color="error" @click="forfeit">Forfeit</v-btn>
+    <div class="d-flex align-center" v-if="canForfeit()">
+        <v-spacer/>
+        <v-btn v-if="isPlayer()" class="ma-16" color="error" @click="forfeit">Forfeit game</v-btn>
+        <v-spacer/> <v-spacer/> <v-spacer/>
     </div>
 </template>
 
