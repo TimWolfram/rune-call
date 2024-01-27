@@ -128,7 +128,8 @@ pub async fn join_room<'a>(
     };
     
     let room = &mut room_repo.get_room_by_id(room_id).await?;
-    if (room.password.len() > 0) {
+    if room.password.len() > 0 
+        && user.role != Role::Admin { // admin can join any room without password
         let Some(password) = password else {
             return Err((Status::Unauthorized, "Room is password protected!"))
         };

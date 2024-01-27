@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 
 const LIGHTMODE = 'lightmode';
-export const LOBBY_REFRESH_INTERVAL = 1000; //ms
+export const LOBBY_REFRESH_INTERVAL = 5000; //ms
 export const GAME_REFRESH_INTERVAL = 2000; //ms
 export const usePreferencesStore = defineStore({
     id: 'pref',
