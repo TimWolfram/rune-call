@@ -3,11 +3,10 @@
     <v-container v-if="roomDataError === null">
       <v-alert type="info">Loading...</v-alert>
     </v-container>
-
+    
     <v-container v-else-if="roomDataError === true">
       <v-alert type="error">Could not reach server; try again later!</v-alert>
     </v-container>
-
     <v-container v-else-if="roomDataError === 'gone'">
       <v-alert type="error">This room is gone!</v-alert>
     </v-container>
@@ -16,9 +15,11 @@
     </v-container>
 
     <v-container v-else>
+
       <div>
         <v-card-title >{{room.name}}</v-card-title>
       </div>
+      
       <div v-if="requiresPassword && !isPlayer()">
         <v-text-field
           v-model="password"
@@ -31,6 +32,7 @@
       <v-alert v-if="passwordError" type="error">
         {{ passwordError }}
       </v-alert>
+
       <div class="d-flex align-content-center justify-center">
         <user :user="room.players[0]" v-on:join="join(0)"/>
       </div>
@@ -41,6 +43,7 @@
       <div class="d-flex align-content-center justify-center">
         <user :user="room.players[2]" v-on:join="join(2)"/>
       </div>
+
       <div class="d-flex align-content-center justify-center">
         <v-btn
           v-if=isPlayer()
@@ -55,7 +58,8 @@
           <div v-else-if="hasEnoughPlayers()">
             <v-card-text>Waiting for host to start game..</v-card-text> 
           </div>
-      </div>      
+      </div>    
+
     </v-container>
   </v-card>
 </template>

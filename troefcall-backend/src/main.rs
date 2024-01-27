@@ -71,6 +71,7 @@ async fn rocket() -> _ {
 
 type ErrorType = (Status, &'static str);
 
+// simple example of an endpoint
 #[get("/secret", data="<form>")]
 fn secret(form: Option<rocket::serde::json::Json<bool> >) -> Result<Redirect, ErrorType> {
     let Some(f) = form else {

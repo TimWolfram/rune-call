@@ -330,6 +330,11 @@ pub async fn play_card<'a>(
             }
             game.play_card(card, current_player_index)?;
             game_repo.update_game(room_id, game.clone()).await;
+            if let GameState::Finished { .. } = game.state {
+                // set game in progress to false on room
+                room_repo.end_game(room_id).await;
+            }
+            return Ok(Json(game));
         }
         GameState::Starting { ref remaining_deck } => 
         {
