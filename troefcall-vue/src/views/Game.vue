@@ -23,28 +23,30 @@
 
     <div class="d-flex flex-column ma-1 pa-1 align-center justify-center" v-else>
         <div class="d-flex flex-wrap ma-1 pa-1 align-center justify-center">
-            
-            <v-card v-if="previousRound" >
-                <v-card-title>
-                    <p class="text-h6">Last round:</p>
-                </v-card-title>
-                <RoundTable :compact="true" :round="previousRound" :cards="cards" :players="game.players" />
-            </v-card>
-                
+            <div class="d-flex flex-column align-center justify-center">
+                <ScoreDisplay v-if="!isStateStarting()" :game="game"/>
+                <v-card v-if="previousRound" >
+                    <v-card-title>
+                        <p class="text-h6">Last round:</p>
+                    </v-card-title>
+                    <RoundTable :compact="true" :round="previousRound" :cards="cards" :players="game.players" />
+                </v-card>
+            </div>
+             
             <RoundTable v-if="currentRound" :round="currentRound" :cards="cards" :players="game.players" />
-            <ScoreDisplay v-if="!isStateStarting()" :game="game"/>
+            
         </div>
 
-            <v-card width="50%" rounded="lg" color="#00FF0040" v-if="gameInfo != null" class="d-flex justify-center ma-1 pa-3">
-                <p class="text-subtitle-2"> {{ gameInfo }} </p>
-                <br/>
-            </v-card>
-
-        <v-btn v-if="isStateFinished()" class="ma-3" color="success" text="Back to room" :to="{ name: 'Room', params: { id: props.roomId } }" />
-        <Cards v-if="canSeeCards()" :disabled="!isYourTurn()" :cards="cards" :tjall="getTjall()" @onPlayCard="playCard" @onSelect="errorMessage = null" />
         <v-alert v-if="errorMessage" type="error">
             {{ errorMessage }}
         </v-alert>
+
+        <v-card maxWidth="90%" width="800" rounded="lg" color="#00FF0040" v-if="gameInfo != null" class="d-flex justify-center ma-1 pa-3">
+            <p class="text-subtitle-2"> {{ gameInfo }} </p>
+        </v-card>
+
+        <v-btn v-if="isStateFinished()" class="ma-3" color="success" text="Back to room" :to="{ name: 'Room', params: { id: props.roomId } }" />
+        <Cards v-if="canSeeCards()" :disabled="!isYourTurn()" :cards="cards" :tjall="getTjall()" @onPlayCard="playCard" @onSelect="errorMessage = null" />
     </div>
 
     <div class="d-flex align-center" v-if="canForfeit()">
@@ -191,7 +193,7 @@ function updateState() {
         }
         else {
             // const player = game?.value?.players[0]?.name;
-            gameInfo.value = `Player ${getCurrentTurnPlayer().name} is playing`;
+            gameInfo.value = `${getCurrentTurnPlayer().name} is playing`;
         }
     }
     else if (isStateFinished()) {

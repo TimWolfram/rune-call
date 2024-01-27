@@ -17,7 +17,7 @@
             </v-container>
         </v-card>
         <v-card v-else 
-                width="150" class="ma-0 pa-0" density="compact"
+                width="300" class="ma-0 pa-0" density="compact"
                 color="#005500" rounded="lg">
             <v-card-text>
                 <!-- compact cards display -->
@@ -28,6 +28,7 @@
                             <p class="text-truncate">
                                 {{ getPlayerName(index) }}
                             </p>
+                            <v-spacer/>
                             <Card :card="card" :simple="true"/>
                         </div>
                     </v-card>
